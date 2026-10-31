@@ -870,3 +870,17 @@ button:disabled {
   text-decoration: underline;
 }
 #suggestionPopup[hidden] { display:none !important; visibility:hidden !important; pointer-events:none !important; }
+/* Optional spelling alternatives: blue dotted underline, not an error */
+.optional-alternative {
+  color: #087eaa;
+  text-decoration-line: underline;
+  text-decoration-style: dotted;
+  text-decoration-color: #087eaa;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.optional-alternative:hover {
+  background: #eaf8ff;
+  border-radius: 2px;
+}
