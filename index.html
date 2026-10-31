@@ -3,58 +3,248 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Spell Checker</title>
+  <title>Toolbox | Spell Checker</title>
+
   <link rel="stylesheet" href="assets/css/styles.css">
-  <!-- All application assets are bundled locally for GitHub Pages and offline use. -->
+
   <script defer src="assets/js/dictionary.js"></script>
   <script defer src="assets/js/app.js"></script>
 </head>
+
 <body>
-<div class="shell">
-  <aside class="sidebar">
-    <div class="logo">T<span>.</span></div><div class="brand"><b>Toolbox</b></div>
-    <div class="side-caption">WRITING TOOLS</div><div class="side-active">Aa &nbsp; Spell checker <span>01</span></div>
-    <small class="side-bottom">Toolbox</small>
-  </aside>
-  <main class="main">
-    <div class="creator-bar"><span class="creator-brand">TOOLBOX</span><span class="creator-credit">Developed by Harish Cousal <span class="creator-dot">·</span> Founder of ToneVault</span></div>
-    <header class="header"><div><div class="crumb">TOOLBOX / WRITING TOOLS</div><h1>Spell checker</h1></div>
-      <label class="language-box"><span>Dictionary</span><select id="language"><option value="en_US">English (US)</option><option value="en_GB">English (UK)</option></select></label>
-    </header>
-    <section class="intro"><div><h2>Check spelling, word by word.</h2><p>Spelling only. No grammar or punctuation correction.</p></div></section>
-    <section class="toolbar">
-      <div class="file-buttons"><label class="btn secondary" for="txtFile">Upload TXT</label><input id="txtFile" type="file" accept=".txt,text/plain" hidden>
-        <label class="btn secondary" for="excelFile">Upload Excel</label><input id="excelFile" type="file" accept=".xlsx,.xls,.csv" hidden>
-        <span id="fileName" class="file-name">No file selected</span></div>
-      <div class="tool-actions"><label class="toggle"><input id="autoCheck" type="checkbox" checked><i></i> Check while typing</label><button id="checkBtn" class="btn primary">Check spelling →</button></div>
-    </section>
-    <section class="workspace">
-      <article class="card editor-card">
-        <div class="card-head"><div><span class="step">01</span><b>Original text</b></div><span id="wordCount" class="subtle">0 words</span></div>
-        <div class="editor-area"><div id="highlight" aria-hidden="true"></div><textarea id="editor" spellcheck="false" placeholder="Type or paste text here…&#10;&#10;Try: I recieved the documant yesterday. The colour is nice."></textarea></div>
-        <div class="editor-foot"><span id="status" class="subtle">Ready to check</span><button id="clearBtn" class="link-btn">Clear text</button></div>
-      </article>
-      <aside class="card suggestions-card"><div class="card-head"><div><span class="step">02</span><b>Suggestions</b></div><span id="errorCount" class="badge">0</span></div><div id="suggestions" class="suggestions">
-        <div class="empty"><div class="empty-aa">Aa</div><b>No words checked yet</b><p>Run a spelling check to review possible mistakes.</p></div>
-      </div></aside>
-    </section>
-    <section class="card results">
-      <div class="card-head results-head"><div><span class="step">03</span><b>Before &amp; after</b></div><div class="view-tabs"><button data-view="compare" class="view active">Compare</button><button data-view="original" class="view">Original</button><button data-view="corrected" class="view">Corrected</button></div></div>
-      <div id="comparison" class="compare-grid"><div class="compare-pane"><small>ORIGINAL</small><p class="compare-text subtle">Your original text will appear here.</p></div><div class="compare-pane"><small>CORRECTED PREVIEW</small><p class="compare-text subtle">Accepted corrections will appear here.</p></div></div>
-      <div class="result-foot"><span id="changeSummary" class="subtle">No corrections applied</span><div><button id="undoBtn" class="btn secondary" disabled>Undo</button><button id="copyBtn" class="btn secondary">Copy corrected</button><button id="downloadTxtBtn" class="btn secondary">Download TXT</button><button id="downloadTextCsvBtn" class="btn primary">Download CSV (Original + Corrected)</button></div></div>
-    </section>
-    <section id="excelPanel" class="card excel-panel" hidden>
-      <div class="card-head"><div><span class="step">04</span><b>Excel / CSV spell check</b></div><span class="subtle">Original columns stay unchanged</span></div>
-      <p class="excel-intro">Select a worksheet and the text columns to check. Corrected values are placed in separate columns. CSV files are supported directly; native XLSX/XLS processing is not enabled in this version.</p>
-      <div class="excel-controls"><label>Worksheet<select id="sheetSelect"></select></label><div><small>Columns to check</small><div id="columnChoices" class="column-choices"></div></div><button id="processExcelBtn" class="btn primary">Prepare corrected columns</button></div>
-      <div id="excelStatus" class="excel-status subtle"></div><div class="excel-actions"><button id="downloadExcelBtn" class="btn primary" hidden>Download corrected CSV</button></div>
-      <div id="excelPreview" class="table-wrap"></div>
-    </section>
-    <footer><span>Spell checker</span><span>Spelling only · No grammar edits</span></footer>
-  </main>
-</div>
-<script>
-/* CSV support is built in for the local test. XLSX/XLS support needs the local SheetJS file. */
-</script>
+  <div class="shell">
+
+    <aside class="sidebar">
+      <div class="logo">T<span>.</span></div>
+      <div class="brand"><b>Toolbox</b></div>
+
+      <div class="side-caption">WRITING TOOLS</div>
+
+      <div class="side-active">
+        Aa &nbsp; Spell checker
+        <span>01</span>
+      </div>
+
+      <small class="side-bottom">Toolbox</small>
+    </aside>
+
+    <main class="main">
+
+      <div class="creator-bar">
+        <span class="creator-brand">TOOLBOX</span>
+        <span class="creator-credit">
+          Developed by Harish Cousal · Founder of ToneVault
+        </span>
+      </div>
+
+      <header class="header">
+        <div>
+          <div class="crumb">TOOLBOX / WRITING TOOLS</div>
+          <h1>Spell checker</h1>
+        </div>
+
+        <label class="language-box">
+          <span>Dictionary</span>
+          <select id="language">
+            <option value="en_US">English (US)</option>
+            <option value="en_GB">English (UK)</option>
+          </select>
+        </label>
+      </header>
+
+      <section class="intro">
+        <div>
+          <h2>Check spelling, word by word.</h2>
+          <p>Spelling only. No grammar or punctuation correction.</p>
+        </div>
+      </section>
+
+      <section class="toolbar">
+        <div class="file-buttons">
+          <label class="btn secondary" for="txtFile">Upload TXT</label>
+          <input
+            id="txtFile"
+            type="file"
+            accept=".txt,text/plain"
+            hidden
+          >
+
+          <label class="btn secondary" for="excelFile">Upload Excel</label>
+          <input
+            id="excelFile"
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            hidden
+          >
+
+          <span id="fileName" class="file-name">No file selected</span>
+        </div>
+
+        <div class="tool-actions">
+          <label class="toggle">
+            <input id="autoCheck" type="checkbox" checked>
+            <i></i>
+            Check while typing
+          </label>
+
+          <button id="checkBtn" class="btn primary">
+            Check spelling →
+          </button>
+        </div>
+      </section>
+
+      <section class="workspace">
+
+        <article class="card editor-card">
+          <div class="card-head">
+            <div>
+              <span class="step">01</span>
+              <b>Original text</b>
+            </div>
+
+            <span id="wordCount" class="subtle">0 words</span>
+          </div>
+
+          <div class="editor-area">
+            <div id="highlight" aria-hidden="true"></div>
+
+            <textarea
+              id="editor"
+              spellcheck="false"
+              placeholder="Type or paste text here..."
+            ></textarea>
+          </div>
+
+          <div class="editor-foot">
+            <span id="status" class="subtle">Ready to check</span>
+            <button id="clearBtn" class="link-btn">Clear text</button>
+          </div>
+        </article>
+
+        <aside class="card suggestions-card">
+          <div class="card-head">
+            <div>
+              <span class="step">02</span>
+              <b>Suggestions</b>
+            </div>
+
+            <span id="errorCount" class="badge">0</span>
+          </div>
+
+          <div id="suggestions" class="suggestions">
+            <div class="empty">
+              <div class="empty-aa">Aa</div>
+              <b>No words checked yet</b>
+              <p>Run a spelling check to review possible mistakes.</p>
+            </div>
+          </div>
+        </aside>
+
+      </section>
+
+      <section class="card results">
+        <div class="card-head results-head">
+          <div>
+            <span class="step">03</span>
+            <b>Before &amp; after</b>
+          </div>
+
+          <div class="view-tabs">
+            <button data-view="compare" class="view active">Compare</button>
+            <button data-view="original" class="view">Original</button>
+            <button data-view="corrected" class="view">Corrected</button>
+          </div>
+        </div>
+
+        <div id="comparison" class="compare-grid">
+          <div class="compare-pane">
+            <small>ORIGINAL</small>
+            <p class="compare-text subtle">
+              Your original text will appear here.
+            </p>
+          </div>
+
+          <div class="compare-pane">
+            <small>CORRECTED PREVIEW</small>
+            <p class="compare-text subtle">
+              Accepted corrections will appear here.
+            </p>
+          </div>
+        </div>
+
+        <div class="result-foot">
+          <span id="changeSummary" class="subtle">
+            No corrections applied
+          </span>
+
+          <div>
+            <button id="undoBtn" class="btn secondary" disabled>
+              Undo
+            </button>
+
+            <button id="copyBtn" class="btn secondary">
+              Copy corrected
+            </button>
+
+            <button id="downloadTxtBtn" class="btn secondary">
+              Download TXT
+            </button>
+
+            <button id="downloadTextCsvBtn" class="btn primary">
+              Download CSV (Original + Corrected)
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section id="excelPanel" class="card excel-panel" hidden>
+        <div class="card-head">
+          <div>
+            <span class="step">04</span>
+            <b>Excel / CSV spell check</b>
+          </div>
+
+          <span class="subtle">Original columns stay unchanged</span>
+        </div>
+
+        <p class="excel-intro">
+          Select the text columns to check. Corrected values will be added
+          in separate columns, preserving your original data.
+        </p>
+
+        <div class="excel-controls">
+          <label>
+            Worksheet
+            <select id="sheetSelect"></select>
+          </label>
+
+          <div>
+            <small>Columns to check</small>
+            <div id="columnChoices" class="column-choices"></div>
+          </div>
+
+          <button id="processExcelBtn" class="btn primary">
+            Prepare corrected columns
+          </button>
+        </div>
+
+        <div id="excelStatus" class="excel-status subtle"></div>
+
+        <div class="excel-actions">
+          <button id="downloadExcelBtn" class="btn primary" hidden>
+            Download corrected CSV
+          </button>
+        </div>
+
+        <div id="excelPreview" class="table-wrap"></div>
+      </section>
+
+      <footer>
+        <span>Spell checker</span>
+        <span>Spelling only · No grammar edits</span>
+      </footer>
+
+    </main>
+  </div>
 </body>
 </html>
