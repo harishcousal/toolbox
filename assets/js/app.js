@@ -284,40 +284,13 @@
   // ---------------------------------------------------------
 
   function fitEditorColumn() {
-    if (!workspace || !editor) return;
+  const workspace = document.querySelector(".workspace");
+  if (!workspace) return;
 
-    if (window.matchMedia("(max-width: 760px)").matches) {
-      workspace.style.gridTemplateColumns = "minmax(0, 1fr)";
-      return;
-    }
-
-    const canvas =
-      fitEditorColumn.canvas ||
-      (fitEditorColumn.canvas = document.createElement("canvas"));
-
-    const context = canvas.getContext("2d");
-
-    context.font = getComputedStyle(editor).font;
-
-    const lines = editor.value.split("\n");
-
-    const longest = Math.max(
-      0,
-      ...lines.map(line => context.measureText(line).width)
-    );
-
-    const available = workspace.clientWidth;
-
-    // Keep the editor compact for short descriptions, but allow
-    // a wider editor for long technical-description lines.
-    const desired = Math.max(
-      290,
-      Math.min(available * 0.48, longest + 42)
-    );
-
-    workspace.style.gridTemplateColumns =
-      `${desired}px minmax(0, 1fr)`;
-  }
+  // Equal-width columns are controlled by CSS.
+  // Do not dynamically resize either column based on text length.
+  workspace.style.removeProperty("grid-template-columns");
+}
 
   function syncPanelHeight() {
     const editorCard = document.querySelector(".editor-card");
@@ -629,7 +602,19 @@
 
   window.addEventListener("resize", () => {
     fitEditorColumn();
-    syncPanelHeight();
+    function syncVerticalScroll(source) {
+  const suggestions = $("suggestions");
+  const highlight = $("highlight");
+
+  if (source === editor) {
+    suggestions.scrollTop = editor.scrollTop;
+  } else {
+    editor.scrollTop = suggestions.scrollTop;
+  }
+
+  highlight.scrollTop = editor.scrollTop;
+  highlight.scrollLeft = editor.scrollLeft;
+}
   });
 
   // Keep the two panels aligned when the editor is resized.
