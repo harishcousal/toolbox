@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Toolbox | Spell Checker</title>
   <link rel="stylesheet" href="assets/css/styles.css">
-    <script defer src="assets/js/dictionary.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script defer src="assets/js/dictionary.js"></script>
   <script defer src="assets/js/app.js"></script>
 </head>
 <body>
@@ -26,9 +27,9 @@
 
       <header class="page-header">
         <div>
-          <div class="crumb">TOOLBOX / WRITING TOOLS</div>
+          <div class="crumb">WRITING TOOLS</div>
           <h1>Spell checker</h1>
-          <p class="subtitle">Check your text, review suggestions, and apply corrections.</p>
+          <p class="subtitle">Check your text spelling, review suggestions, and apply corrections. <span class="subtitle-note">No grammar or punctuation correction.</span></p>
         </div>
         <label class="language-box"><span>Dictionary</span>
           <select id="language">
@@ -37,12 +38,6 @@
           </select>
         </label>
       </header>
-
-      <section class="intro">
-        <div><h2>Check spelling, word by word.</h2>
-          <p>Spelling only. No grammar or punctuation correction.</p></div>
-
-      </section>
 
       <section class="toolbar">
         <div class="file-buttons">
@@ -58,6 +53,19 @@
         </div>
       </section>
 
+      <section id="excelPanel" class="card excel-panel" hidden>
+        <div class="results-heading"><div><span class="step">03</span><b>Excel / CSV spell check</b></div><span class="subtle">Original columns stay unchanged</span></div>
+        <p class="excel-intro">Upload a workbook, select one text column, load it into <b>Your text</b>, correct it there, then save the corrected values back to a new Excel column.</p>
+        <div class="excel-controls">
+          <label>Worksheet <select id="sheetSelect"></select></label>
+          <div><small>Columns to check</small><div id="columnChoices" class="column-choices"></div></div>
+          <button id="loadColumnBtn" class="btn primary">Load selected column into Your text</button>
+        </div>
+        <div id="excelStatus" class="subtle excel-status"></div>
+        <div class="excel-workflow-actions"><button id="saveColumnBtn" class="btn primary" hidden>Save corrected text to Excel</button> <button id="downloadExcelBtn" class="btn primary" type="button" style="display:inline-flex;visibility:visible" disabled>Download corrected Excel</button> <button id="clearExcelBtn" class="btn soft" type="button">Clear Excel</button></div>
+        <div id="excelPreview" class="table-wrap"></div>
+      </section>
+
       <section class="editor-card card">
         <div class="editor-heading">
           <div class="heading-left"><span class="step">01</span><b>Your text</b><span id="wordCount" class="subtle">0 words</span></div>
@@ -66,18 +74,20 @@
 
         <div class="editor-instructions">Paste or type below. Click an underlined word to view suggestions.</div>
         <div class="editor-wrap" id="editorWrap">
-          <div id="editor" class="text-editor" contenteditable="true" role="textbox" aria-multiline="true" spellcheck="false" data-placeholder="Paste or type your text here..."></div>
-          <div id="suggestionPopup" class="suggestion-popup" hidden></div>
+          <div id="editor" class="rich-editor" contenteditable="true" spellcheck="false"
+               autocapitalize="off" role="textbox" aria-multiline="true"
+               data-placeholder="Paste or type your text here..."></div>
+          <button id="editorResizeHandle" class="editor-resize-handle" type="button"
+                  aria-label="Resize text editor" title="Drag to resize the text editor">
+            <span></span><span></span><span></span>
+          </button>
         </div>
-
         <div class="editor-footer">
-          <span id="status" class="subtle" aria-live="polite">Ready to check</span>
-          <div class="footer-actions">
-            <button id="clearBtn" class="text-button">Clear text</button>
-            <button id="undoBtn" class="btn secondary" disabled>Undo</button>
-            <button id="copyBtn" class="btn secondary">Copy corrected</button>
-            <button id="downloadTxtBtn" class="btn secondary">Download TXT</button>
-            <button id="downloadExcelTextBtn" class="btn secondary">Download Excel</button>
+          <span id="status" class="subtle">Ready to check</span>
+          <div class="editor-footer-actions">
+            <button id="clearBtn" class="btn soft" type="button">Clear text</button>
+            <button id="undoBtn" class="btn" type="button" disabled>Undo</button>
+            <button id="downloadTxtBtn" class="btn" type="button">Download TXT</button>
           </div>
         </div>
       </section>
@@ -96,21 +106,7 @@
         </div>
         <div class="result-footer">
           <span id="changeSummary" class="subtle">No corrections applied</span>
-          <button id="downloadTextCsvBtn" class="btn secondary">Download CSV (Original + Corrected)</button>
         </div>
-      </section>
-
-      <section id="excelPanel" class="card excel-panel" hidden>
-        <div class="results-heading"><div><span class="step">03</span><b>Excel / CSV spell check</b></div><span class="subtle">Original columns stay unchanged</span></div>
-        <p class="excel-intro">Select the text columns to check. Corrected values will be added in separate columns.</p>
-        <div class="excel-controls">
-          <label>Worksheet <select id="sheetSelect"></select></label>
-          <div><small>Columns to check</small><div id="columnChoices" class="column-choices"></div></div>
-          <button id="processExcelBtn" class="btn primary">Prepare corrected columns</button>
-        </div>
-        <div id="excelStatus" class="subtle excel-status"></div>
-        <button id="downloadExcelBtn" class="btn primary" hidden>Download corrected CSV</button>
-        <div id="excelPreview" class="table-wrap"></div>
       </section>
 
       <footer><span>Toolbox Spell Checker</span><span>Spelling only · No grammar edits</span></footer>
