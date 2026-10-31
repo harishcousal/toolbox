@@ -45,10 +45,22 @@ h2{font-size:14px;margin:0 0 5px}p{line-height:1.5}.intro p{margin:0;color:var(-
 .step{width:20px;height:20px;border-radius:6px;display:inline-grid;place-items:center;background:#e8faff;color:#008ca5;font-size:9px;font-weight:800}
 .subtle{color:var(--muted);font-size:10px}.issue-badge{border-radius:6px;padding:5px 8px;background:#fff0f1;color:var(--red);font-size:10px;font-weight:750}
 .editor-instructions{padding:10px 15px 0;color:var(--muted);font-size:10px}
-.editor-wrap{position:relative;height:390px;min-height:260px;margin:0 10px;isolation:isolate;overflow:auto;border:1px solid var(--line);border-radius:0 0 9px 9px;background:#fff}
-#editor{display:block;position:relative;width:100%;min-height:100%;padding:17px 15px;border:0;outline:none;background:transparent;color:var(--ink);caret-color:#007f98;font:13px/1.85 ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace;white-space:pre-wrap;overflow-wrap:anywhere;word-break:normal;tab-size:4}
-#editor:empty:before{content:attr(data-placeholder);color:#93a2b1;pointer-events:none}
-#editor .misspelled{background:linear-gradient(to bottom,transparent 72%,#e34b55 72%,#e34b55 83%,transparent 83%);text-decoration:underline wavy #e34b55;text-decoration-thickness:1px;text-underline-offset:3px;cursor:pointer}
+.editor-wrap{position:relative;min-height:390px;margin:0 10px 0;isolation:isolate}
+.rich-editor{
+  position:relative;width:100%;min-height:390px;max-height:70vh;overflow:auto;
+  margin:0;padding:17px 15px;box-sizing:border-box;border:0;outline:none;
+  background:#fff;color:var(--ink);caret-color:#007f98;
+  font-family:ui-monospace,SFMono-Regular,Consolas,"Liberation Mono",monospace;
+  font-size:13px;line-height:1.85;letter-spacing:0;tab-size:4;
+  white-space:pre-wrap;overflow-wrap:anywhere;word-break:normal;
+}
+.rich-editor:empty:before{content:attr(data-placeholder);color:#91a0ad;pointer-events:none}
+.rich-editor .spell-error{background:linear-gradient(to bottom,transparent 72%,#e34b55 72%,#e34b55 83%,transparent 83%);text-decoration:underline wavy #e34b55;text-underline-offset:3px}
+.rich-editor .inline-suggestions{display:inline-flex;align-items:center;gap:3px;flex-wrap:wrap;vertical-align:baseline;margin:0 5px 0 4px;padding:1px 4px;border:1px solid #dbe8ef;border-radius:6px;background:#f8fcfe;font-family:Inter,"Segoe UI",Arial,sans-serif;line-height:1.5}
+.rich-editor .inline-suggestions button{border:1px solid #bceaf3;background:#f0fcff;color:#007f98;border-radius:5px;padding:2px 5px;font-size:10px;font-weight:650;cursor:pointer}
+.rich-editor .inline-suggestions button:hover{background:#dff8fd}
+.rich-editor .inline-suggestions .inline-action{border:0;background:transparent;color:#64798b;font-size:9px;font-weight:500;padding:2px}
+.rich-editor .inline-suggestions .inline-action:hover{color:#008ba5}
 .editor-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 13px;border-top:1px solid var(--line);min-height:48px}
 .text-button{background:none;border:0;color:#647b8d;font-size:10px;padding:7px}.text-button:hover{color:var(--red)}
 .suggestion-popup{position:absolute;z-index:5;min-width:210px;max-width:min(360px,calc(100% - 20px));padding:10px;background:#fff;border:1px solid #cfdce6;border-radius:10px;box-shadow:0 10px 30px rgba(17,43,61,.18);font-family:Inter,"Segoe UI",Arial,sans-serif;font-size:11px}
@@ -58,9 +70,9 @@ h2{font-size:14px;margin:0 0 5px}p{line-height:1.5}.intro p{margin:0;color:var(-
 .popup-actions{display:flex;gap:12px;flex-wrap:wrap;border-top:1px solid #edf1f5;margin-top:9px;padding-top:8px}.popup-action{border:0;background:transparent;color:#64798b;padding:2px 0;font-size:10px}.popup-action:hover{color:#008ba5}
 .results{margin-top:13px;overflow:hidden}.view-tabs{display:flex;gap:3px;background:#f0f4f8;padding:3px;border-radius:7px}
 .view{border:0;background:transparent;color:#64798b;padding:7px 9px;border-radius:5px;font-size:10px}.view.active{background:#fff;color:#1a4054;box-shadow:0 1px 3px #d7e1e8;font-weight:700}
-.compare-grid{display:grid;grid-template-columns:1fr 1fr}.compare-pane{min-width:0;padding:14px;border-right:1px solid var(--line)}.compare-pane:last-child{border-right:0}
+.compare-grid{display:grid;grid-template-columns:1fr 1fr;min-width:0}.compare-pane{min-width:0;max-width:100%;padding:14px;border-right:1px solid var(--line)}.compare-pane:last-child{border-right:0}
 .compare-pane small{font-size:9px;letter-spacing:1px;font-weight:800;color:#8294a5}
-.compare-text{font:11px/1.8 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere;min-height:60px;margin:10px 0 0;color:#29455a}
+.compare-text{font:11px/1.8 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre;overflow:auto;overflow-wrap:normal;height:245px;min-height:0;max-height:40vh;margin:10px 0 0;color:#29455a;scrollbar-gutter:stable}.compare-grid.single-original{grid-template-columns:1fr}.compare-grid.single-original .compare-pane:nth-child(2){display:none}.compare-grid.single-corrected{grid-template-columns:1fr}.compare-grid.single-corrected .compare-pane:first-child{display:none}
 .result-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;border-top:1px solid var(--line)}
 .excel-panel{margin-top:13px;padding-bottom:14px}.excel-intro{padding:0 14px;color:var(--muted)}.excel-controls{display:flex;align-items:flex-start;gap:18px;padding:0 14px;flex-wrap:wrap}.excel-controls label{display:grid;gap:6px}.column-choices{display:flex;gap:8px;flex-wrap:wrap;margin-top:7px}.column-choices label{display:flex;align-items:center;gap:5px;background:#f4f8fb;border:1px solid var(--line);border-radius:6px;padding:6px}.excel-status{padding:10px 14px}.table-wrap{overflow:auto;max-width:100%;padding:0 14px}.table-wrap table{border-collapse:collapse;font-size:11px;white-space:nowrap}.table-wrap th,.table-wrap td{border:1px solid var(--line);padding:7px;text-align:left}.table-wrap th{background:#f4f8fb}
 footer{display:flex;justify-content:space-between;gap:10px;color:#8192a2;font-size:9px;padding:17px 2px 0}
@@ -70,14 +82,707 @@ footer{display:flex;justify-content:space-between;gap:10px;color:#8192a2;font-si
 @media(max-width:560px){.page-header{align-items:flex-start;flex-direction:column}.language-box{align-self:flex-end}.creator-credit{font-size:9px}.local-badge{display:none}.compare-grid{grid-template-columns:1fr}.compare-pane{border-right:0;border-bottom:1px solid var(--line)}.compare-pane:last-child{border-bottom:0}.result-footer{align-items:flex-start;flex-direction:column}.editor-wrap{min-height:320px}#editor{min-height:320px}}
 
 
+/* UI refinement: spacious default editor and consistent Toolbox controls */
+.editor-card .editor-area,
+.editor-card .editor-body,
+.editor-card .editor-content {
+  min-height: 0;
+}
+#editor {
+  display: block;
+  width: 100%;
+  min-height: 320px;
+  height: 320px;
+  resize: vertical;
+  padding: 15px 16px;
+  border: 1px solid var(--line);
+  border-radius: 0 0 9px 9px;
+  background: #fff;
+  color: var(--ink);
+  font: 13px/1.8 ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.editor-area {
+  min-height: 320px;
+}
+.editor-area #highlight {
+  min-height: 320px;
+  padding: 15px 16px;
+  font: 13px/1.8 ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.text-button {
+  appearance: none;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #e8faff;
+  color: #007f98;
+  padding: 8px 12px;
+  font-weight: 650;
+  transition: background .15s ease, border-color .15s ease, color .15s ease;
+}
+.text-button:hover {
+  background: #d3f5fb;
+  border-color: #8bdce8;
+  color: #00687b;
+}
+.text-button:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+.footer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+@media (max-width: 760px) {
+  #editor, .editor-area #highlight {
+    min-height: 260px;
+    height: 260px;
+  }
+}
 
-/* Stable single-editor layout */
-.editor-card{overflow:visible}
-.suggestion-popup{position:sticky;left:14px;bottom:12px;margin:0 14px 12px;max-width:360px}
-.popup-title,.suggestion-popup-heading{font-weight:750;color:var(--ink);margin-bottom:8px}
-.suggestion-popup-actions{display:flex;gap:12px;flex-wrap:wrap;border-top:1px solid #edf1f5;margin-top:9px;padding-top:8px}
-.suggestion-action{border:0;background:transparent;color:#64798b;padding:4px 0;font-size:10px}
-.text-button{appearance:none;border:1px solid var(--line);border-radius:8px;background:#e8faff;color:#007f98;padding:8px 12px;font-weight:650}
-.text-button:hover{background:#d3f5fb;border-color:#8bdce8;color:#00687b}
-@media(max-width:850px){.editor-wrap{height:350px}.editor-footer{align-items:flex-start;flex-direction:column}.footer-actions{width:100%}}
-@media(max-width:560px){.editor-wrap{height:320px}.compare-grid{grid-template-columns:1fr}.compare-pane{border-right:0;border-bottom:1px solid var(--line)}.compare-pane:last-child{border-bottom:0}}
+/* Inline spell-check suggestions */
+.inline-suggestions {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border-top: 1px solid #dce5ef;
+  background: #fff;
+  color: #102331;
+}
+
+.inline-suggestions-heading {
+  margin-bottom: 10px;
+  color: #65788b;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.inline-suggestion-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding: 8px 0;
+  border-bottom: 1px solid #edf1f5;
+}
+
+.misspelled-word {
+  color: #d92d3a;
+  margin-right: 3px;
+}
+
+.suggestion-chip {
+  padding: 5px 9px;
+  border: 1px solid #a9eafa;
+  border-radius: 6px;
+  background: #eafaff;
+  color: #007f9c;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.suggestion-chip:hover {
+  background: #00b8d9;
+  border-color: #00b8d9;
+  color: #fff;
+}
+
+.suggestion-action {
+  padding: 5px 7px;
+  border: 0;
+  background: transparent;
+  color: #526b80;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.suggestion-action:hover {
+  color: #009fbd;
+  text-decoration: underline;
+}
+
+.spell-success {
+  margin: 0;
+  color: #526b80;
+  font-size: 12px;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Hide removed controls even if old markup remains */
+#copyBtn,
+#copyCorrectedBtn,
+#downloadExcelBtn,
+#downloadExcel,
+#localBadge,
+#processingBadge {
+  display: none !important;
+}
+
+
+/* Fix suggestion popup placement and prevent legacy styles from stretching it. */
+.suggestion-popup {
+  position: fixed !important;
+  z-index: 9999 !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: min(220px, calc(100vh - 24px));
+  min-width: 0 !important;
+  padding: 12px !important;
+  overflow: auto;
+  box-sizing: border-box;
+  line-height: 1.4;
+  white-space: normal;
+}
+.suggestion-popup-heading {
+  margin: 0 0 9px;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 750;
+}
+.suggestion-popup .suggestion-chip {
+  display: inline-flex;
+  margin: 0 5px 5px 0;
+  align-items: center;
+}
+.suggestion-popup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  border-top: 1px solid var(--line);
+  margin-top: 8px;
+  padding-top: 8px;
+}
+.suggestion-popup .suggestion-action {
+  border: 0;
+  border-radius: 4px;
+  padding: 4px 0;
+  background: transparent;
+  color: #526b80;
+  font-size: 11px;
+}
+.suggestion-popup .suggestion-action:hover { color: var(--cyan-dark); }
+#downloadExcelTextBtn { display: none !important; }
+
+
+/* Revision: keep suggestion UI contained and use consistent Toolbox button colours. */
+.editor-wrap { position: relative; }
+.suggestion-popup {
+  z-index: 30;
+  max-width: min(320px, calc(100% - 20px));
+  box-sizing: border-box;
+  overflow-wrap: anywhere;
+}
+.suggestion-popup button,
+.btn,
+.text-button {
+  font: inherit;
+}
+.text-button {
+  border: 1px solid #bdeef6;
+  background: #e8faff;
+  color: #006d82;
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+.text-button:hover {
+  background: #d5f6fc;
+  border-color: #00b8d4;
+}
+.text-button:focus-visible,
+.btn:focus-visible,
+.suggestion-popup button:focus-visible {
+  outline: 2px solid #00bcd4;
+  outline-offset: 2px;
+}
+@media (max-width: 760px) {
+  .editor-footer { gap: 10px; flex-wrap: wrap; }
+  .footer-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+  .suggestion-popup { max-width: calc(100% - 12px); }
+}
+
+
+/* Stable editor layout: the textarea stays in normal document flow and can be resized. */
+.editor-wrap {
+  position: relative;
+  min-height: 0 !important;
+  height: auto !important;
+  margin: 0 10px 10px !important;
+  overflow: visible !important;
+}
+#highlight { display: none !important; }
+#editor {
+  position: relative !important;
+  inset: auto !important;
+  display: block !important;
+  width: 100% !important;
+  height: 320px !important;
+  min-height: 180px !important;
+  max-height: 70vh;
+  resize: vertical !important;
+  overflow: auto !important;
+  padding: 15px 16px !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 8px !important;
+  background: #fff !important;
+  color: var(--ink) !important;
+  font: 13px/1.8 ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace !important;
+  white-space: pre-wrap !important;
+  overflow-wrap: anywhere !important;
+}
+.editor-card { overflow: visible !important; }
+.editor-footer { position: relative; background: #fff; z-index: 1; }
+.footer-actions { justify-content: flex-end; }
+.text-button {
+  border: 1px solid #bdeef6 !important;
+  background: #e8faff !important;
+  color: #006d82 !important;
+  border-radius: 8px !important;
+  padding: 8px 12px !important;
+}
+.inline-suggestions {
+  margin: 0 10px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+.inline-suggestions-heading { font-size: 11px; color: var(--muted); margin-bottom: 5px; }
+.inline-suggestion-row { display:flex; align-items:center; flex-wrap:wrap; gap:7px; padding:8px 0; border-bottom:1px solid #edf1f5; }
+.inline-suggestion-row:last-child { border-bottom:0; }
+.misspelled-word { color:var(--red); font-weight:750; }
+.suggestion-action { border:0; background:transparent; color:#64798b; padding:5px; font-size:10px; }
+.suggestion-chip { cursor:pointer; }
+@media (max-width:760px) {
+  #editor { height:260px !important; min-height:180px !important; }
+  .editor-footer { align-items:flex-start; flex-direction:column; }
+  .footer-actions { justify-content:flex-start; width:100%; }
+}
+
+
+/* Single-field spell checking: highlights and suggestion card live inside the editor. */
+.editor-wrap {
+  position: relative !important;
+  height: 360px !important;
+  min-height: 220px !important;
+  overflow: hidden !important;
+  margin: 0 10px 10px !important;
+  border: 1px solid var(--line, #dbe5ef) !important;
+  border-radius: 8px !important;
+  background: #fff !important;
+}
+#highlight, #editor {
+  box-sizing: border-box !important;
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+  padding: 14px 15px !important;
+  border: 0 !important;
+  border-radius: 8px !important;
+  font: 13px/1.85 ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace !important;
+  letter-spacing: 0 !important;
+  white-space: pre-wrap !important;
+  overflow-wrap: break-word !important;
+  tab-size: 4 !important;
+}
+#highlight {
+  z-index: 1 !important;
+  overflow: hidden !important;
+  pointer-events: none !important;
+  color: #102a43 !important;
+  background: transparent !important;
+  word-break: normal !important;
+}
+#editor {
+  z-index: 2 !important;
+  resize: vertical !important;
+  overflow: auto !important;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  caret-color: #102a43 !important;
+  background: transparent !important;
+  outline: none !important;
+  scrollbar-gutter: stable;
+}
+#editor::selection { background: rgba(0, 212, 255, .25) !important; }
+.spell-error {
+  color: #c62828 !important;
+  background: rgba(255, 72, 72, .08) !important;
+  text-decoration: underline wavy #e53935 !important;
+  text-underline-offset: 3px !important;
+  pointer-events: none !important;
+}
+.suggestion-popup {
+  position: absolute !important;
+  z-index: 10 !important;
+  width: min(330px, calc(100% - 28px)) !important;
+  max-height: 125px !important;
+  overflow: auto !important;
+  padding: 10px 12px !important;
+  background: #fff !important;
+  border: 1px solid #cfe0eb !important;
+  border-radius: 9px !important;
+  box-shadow: 0 8px 24px rgba(16, 42, 67, .16) !important;
+  color: #102a43 !important;
+  font: 12px/1.4 system-ui, sans-serif !important;
+}
+.suggestion-title { font-weight: 700; color: #c62828; margin-bottom: 6px; }
+.suggestion-options { display:flex; flex-wrap:wrap; gap:5px; }
+.suggestion-chip {
+  border: 1px solid #b6edf7 !important;
+  background: #eafaff !important;
+  color: #007c93 !important;
+  border-radius: 6px !important;
+  padding: 4px 7px !important;
+  cursor:pointer !important;
+  font-size:11px !important;
+}
+.suggestion-actions { display:flex; gap:9px; border-top:1px solid #e6edf2; margin-top:7px; padding-top:5px; }
+.suggestion-action { background:transparent !important; border:0 !important; color:#63798b !important; padding:2px 0 !important; cursor:pointer !important; font-size:10px !important; }
+.inline-suggestions { display:none !important; }
+@media (max-width:760px) { .editor-wrap { height:300px !important; } }
+
+.suggestion-popup{display:none!important}
+
+
+/* FINAL OVERRIDES: contenteditable editor must render its own text visibly. */
+.editor-wrap {
+  position: relative !important;
+  display: block !important;
+  height: auto !important;
+  min-height: 390px !important;
+  max-height: none !important;
+  overflow: visible !important;
+  margin: 0 10px 0 !important;
+  border: 1px solid var(--line, #dbe5ef) !important;
+  border-radius: 8px !important;
+  background: #fff !important;
+}
+#editor.rich-editor {
+  position: relative !important;
+  inset: auto !important;
+  display: block !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 390px !important;
+  max-height: 70vh !important;
+  overflow: auto !important;
+  resize: vertical !important;
+  padding: 17px 15px !important;
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 8px !important;
+  color: #102a43 !important;
+  -webkit-text-fill-color: #102a43 !important;
+  caret-color: #007f98 !important;
+  background: #fff !important;
+  z-index: auto !important;
+  outline: none !important;
+  font: 13px/1.85 ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace !important;
+  letter-spacing: 0 !important;
+  white-space: pre-wrap !important;
+  overflow-wrap: anywhere !important;
+  word-break: normal !important;
+}
+#editor.rich-editor .spell-error {
+  color: #b4232c !important;
+  -webkit-text-fill-color: #b4232c !important;
+  background: rgba(255, 72, 72, .08) !important;
+  text-decoration: underline wavy #e53935 !important;
+  text-underline-offset: 3px !important;
+  pointer-events: auto !important;
+}
+#editor.rich-editor .inline-suggestions {
+  display: inline-flex !important;
+  position: static !important;
+  vertical-align: baseline !important;
+  z-index: auto !important;
+}
+#editor.rich-editor .inline-suggestions button {
+  color: #007f98 !important;
+  -webkit-text-fill-color: #007f98 !important;
+}
+#highlight { display: none !important; }
+.suggestion-popup { display: none !important; }
+@media (max-width:760px) {
+  .editor-wrap { height: auto !important; min-height: 300px !important; }
+  #editor.rich-editor { min-height: 300px !important; }
+}
+
+
+/* Stable editor layout: footer is outside the editable surface and stays visible. */
+.editor-card { display:flex; flex-direction:column; min-height:0; overflow:visible !important; }
+.editor-wrap { position:relative !important; display:block !important; height:420px !important; min-height:260px !important; max-height:none !important; overflow:visible !important; margin:0 10px !important; border:1px solid var(--line,#dbe5ef) !important; border-radius:8px !important; background:#fff !important; }
+#editor.rich-editor { box-sizing:border-box !important; display:block !important; position:relative !important; width:100% !important; height:100% !important; min-height:0 !important; max-height:none !important; overflow:auto !important; resize:vertical !important; margin:0 !important; padding:15px 12px !important; border:0 !important; border-radius:8px !important; background:#fff !important; color:#102a43 !important; -webkit-text-fill-color:#102a43 !important; caret-color:#007f98 !important; font:13px/1.8 ui-monospace,SFMono-Regular,Consolas,monospace !important; letter-spacing:0 !important; white-space:pre-wrap !important; overflow-wrap:anywhere !important; }
+#editor.rich-editor .spell-error { color:#b4232c !important; -webkit-text-fill-color:#b4232c !important; background:rgba(255,72,72,.08) !important; text-decoration:underline wavy #e53935 !important; text-underline-offset:3px !important; }
+#editor.rich-editor .inline-suggestions { display:inline-flex !important; position:static !important; vertical-align:baseline !important; white-space:normal !important; margin-left:5px !important; padding:0 3px !important; border:1px solid #dce8ef !important; border-radius:5px !important; background:#f8fbfd !important; }
+#editor.rich-editor .inline-suggestions button { display:inline-block !important; color:#007f98 !important; -webkit-text-fill-color:#007f98 !important; cursor:pointer !important; }
+.editor-footer { display:flex !important; position:relative !important; flex:0 0 auto !important; align-items:center !important; justify-content:space-between !important; gap:12px !important; min-height:48px !important; padding:9px 13px !important; background:#fff !important; border-top:1px solid var(--line,#dbe5ef) !important; z-index:1 !important; }
+.editor-footer-actions { display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
+.editor-footer .btn { flex:0 0 auto; }
+@media(max-width:700px) { .editor-wrap { height:360px !important; } .editor-footer { align-items:flex-start !important; flex-direction:column !important; } }
+
+/* Final fix: keep the editable area vertically resizable without covering footer controls. */
+.editor-wrap { height: 420px !important; min-height: 260px !important; overflow: visible !important; }
+#editor.rich-editor { height: 100% !important; min-height: 260px !important; max-height: 70vh !important; overflow: auto !important; resize: vertical !important; }
+.editor-footer { position: relative !important; z-index: 2 !important; flex-shrink: 0 !important; }
+
+
+/* Definitive resize fix: resize the wrapper, not the contenteditable child.
+   This lets the whole editor grow while the action buttons remain below it. */
+.editor-card {
+  display: flex !important;
+  flex-direction: column !important;
+  min-height: 0 !important;
+  overflow: visible !important;
+}
+#editorWrap.editor-wrap {
+  box-sizing: border-box !important;
+  display: block !important;
+  position: relative !important;
+  flex: 0 0 auto !important;
+  width: auto !important;
+  height: 420px !important;
+  min-height: 260px !important;
+  max-height: 80vh !important;
+  margin: 0 10px !important;
+  padding: 0 !important;
+  overflow: auto !important;
+  resize: vertical !important;
+  border: 1px solid var(--line, #dbe5ef) !important;
+  border-radius: 8px !important;
+  background: #fff !important;
+}
+#editorWrap.editor-wrap #editor.rich-editor {
+  box-sizing: border-box !important;
+  display: block !important;
+  position: relative !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 100% !important;
+  max-height: none !important;
+  margin: 0 !important;
+  padding: 15px 12px !important;
+  overflow: auto !important;
+  resize: none !important;
+  border: 0 !important;
+  outline: none !important;
+  color: #102a43 !important;
+  -webkit-text-fill-color: #102a43 !important;
+  caret-color: #007f98 !important;
+  background: #fff !important;
+  white-space: pre-wrap !important;
+  overflow-wrap: anywhere !important;
+}
+.editor-footer {
+  box-sizing: border-box !important;
+  position: relative !important;
+  flex: 0 0 auto !important;
+  z-index: 2 !important;
+  min-height: 48px !important;
+}
+@media (max-width: 700px) {
+  #editorWrap.editor-wrap { height: 360px !important; min-height: 220px !important; max-height: 80vh !important; }
+}
+
+
+/* V2 resize fix: use a dedicated drag handle instead of browser-native resize,
+   which is unreliable for contenteditable elements and nested scrolling layouts. */
+#editorWrap.editor-wrap {
+  height: 420px !important;
+  min-height: 220px !important;
+  max-height: 80vh !important;
+  overflow: hidden !important;
+  resize: none !important;
+  position: relative !important;
+  padding-bottom: 15px !important;
+  touch-action: auto;
+}
+#editorWrap.editor-wrap #editor.rich-editor {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  padding: 15px 12px 20px !important;
+  overflow: auto !important;
+  resize: none !important;
+}
+#editorResizeHandle.editor-resize-handle {
+  position: absolute;
+  right: 1px;
+  bottom: 1px;
+  z-index: 20;
+  width: 28px;
+  height: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: 3px;
+  padding: 3px 4px;
+  border: 0;
+  border-radius: 0 0 7px 0;
+  background: rgba(245, 250, 253, .96);
+  cursor: ns-resize;
+  touch-action: none;
+}
+#editorResizeHandle.editor-resize-handle span {
+  display: block;
+  height: 1px;
+  background: #6f8798;
+  border-radius: 2px;
+}
+#editorResizeHandle.editor-resize-handle span:nth-child(1) { width: 8px; }
+#editorResizeHandle.editor-resize-handle span:nth-child(2) { width: 13px; }
+#editorResizeHandle.editor-resize-handle span:nth-child(3) { width: 18px; }
+#editorResizeHandle.editor-resize-handle:hover { background: #e4f8fc; }
+#editorResizeHandle.editor-resize-handle:focus-visible {
+  outline: 2px solid #00aeca;
+  outline-offset: -2px;
+}
+#editorWrap.editor-wrap.is-resizing,
+#editorWrap.editor-wrap.is-resizing #editor {
+  user-select: none !important;
+  cursor: ns-resize !important;
+}
+@media (max-width: 700px) {
+  #editorWrap.editor-wrap { height: 360px !important; min-height: 220px !important; max-height: 80vh !important; }
+}
+
+.excel-workflow-actions { display:flex; gap:8px; flex-wrap:wrap; margin:10px 0; }
+#excelPanel[hidden] { display:none !important; }
+
+
+/* Keep Before & after compact for large spreadsheets; scroll inside the preview. */
+.results {
+  min-height: 0;
+}
+#comparison.compare-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  max-height: 300px;
+  min-height: 120px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  align-items: stretch;
+}
+#comparison .compare-pane {
+  min-width: 0;
+  max-height: 300px;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+#comparison .compare-text {
+  max-height: none;
+  min-height: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+#comparison .compare-pane small {
+  position: sticky;
+  top: 0;
+  display: block;
+  background: #fff;
+  z-index: 1;
+  padding: 4px 0 8px;
+}
+.excel-workflow-actions #downloadExcelBtn:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+@media (max-width: 700px) {
+  #comparison.compare-grid {
+    grid-template-columns: minmax(0, 1fr);
+    max-height: 300px;
+  }
+}
+
+
+/* V3: one shared vertical scrollbar for both comparison columns. */
+#comparison.compare-grid {
+  height: 270px !important;
+  max-height: 270px !important;
+  min-height: 140px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  align-items: start !important;
+  scrollbar-gutter: stable;
+}
+#comparison .compare-pane {
+  height: auto !important;
+  max-height: none !important;
+  min-height: 0 !important;
+  overflow: visible !important;
+}
+#comparison .compare-text {
+  display: block !important;
+  height: auto !important;
+  max-height: none !important;
+  min-height: 0 !important;
+  overflow: visible !important;
+  margin: 0 !important;
+  padding: 12px 0 !important;
+  white-space: pre-wrap !important;
+  overflow-wrap: anywhere !important;
+}
+#comparison .compare-pane small {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 3 !important;
+  padding: 8px 0 !important;
+}
+#comparison.single-original { grid-template-columns: minmax(0, 1fr) !important; }
+#comparison.single-original .compare-pane:nth-child(2) { display: none !important; }
+#comparison.single-corrected { grid-template-columns: minmax(0, 1fr) !important; }
+#comparison.single-corrected .compare-pane:nth-child(1) { display: none !important; }
+#comparison mark.word-original-change {
+  color: #a11b1b !important;
+  background: #ffe0e0 !important;
+  border-bottom: 2px solid #d93030;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+#comparison mark.word-corrected-change {
+  color: #126b35 !important;
+  background: #d9f7e4 !important;
+  border-bottom: 2px solid #1e9b50;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+#downloadExcelBtn { white-space: nowrap; }
+.excel-workflow-actions #downloadExcelBtn:not(:disabled) {
+  background: #00b8d4 !important;
+  color: #062b35 !important;
+  opacity: 1 !important;
+}
+@media (max-width: 700px) {
+  #comparison.compare-grid { height: 240px !important; max-height: 240px !important; }
+}
+
+/* Reliable Excel export control visibility */
+#excelPanel .excel-workflow-actions #downloadExcelBtn {
+  display: inline-flex;
+  visibility: visible;
+  opacity: 1;
+}
+#excelPanel .excel-workflow-actions #downloadExcelBtn:disabled {
+  cursor: not-allowed;
+  opacity: .55;
+}
+
+/* v5: keep corrected workbook export visible in the Excel action row */
+#downloadExcelBtn{display:inline-flex!important;visibility:visible!important;}
+#downloadExcelBtn[hidden]{display:inline-flex!important;}
