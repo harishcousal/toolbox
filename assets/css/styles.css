@@ -132,3 +132,87 @@ footer{display:flex;justify-content:space-between;gap:10px;color:#8192a2;font-si
     height: 260px;
   }
 }
+
+/* Inline spell-check suggestions */
+.inline-suggestions {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border-top: 1px solid #dce5ef;
+  background: #fff;
+  color: #102331;
+}
+
+.inline-suggestions-heading {
+  margin-bottom: 10px;
+  color: #65788b;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.inline-suggestion-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding: 8px 0;
+  border-bottom: 1px solid #edf1f5;
+}
+
+.misspelled-word {
+  color: #d92d3a;
+  margin-right: 3px;
+}
+
+.suggestion-chip {
+  padding: 5px 9px;
+  border: 1px solid #a9eafa;
+  border-radius: 6px;
+  background: #eafaff;
+  color: #007f9c;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.suggestion-chip:hover {
+  background: #00b8d9;
+  border-color: #00b8d9;
+  color: #fff;
+}
+
+.suggestion-action {
+  padding: 5px 7px;
+  border: 0;
+  background: transparent;
+  color: #526b80;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.suggestion-action:hover {
+  color: #009fbd;
+  text-decoration: underline;
+}
+
+.spell-success {
+  margin: 0;
+  color: #526b80;
+  font-size: 12px;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Hide removed controls even if old markup remains */
+#copyBtn,
+#copyCorrectedBtn,
+#downloadExcelBtn,
+#downloadExcel,
+#localBadge,
+#processingBadge {
+  display: none !important;
+}
