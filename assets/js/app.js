@@ -7,13 +7,121 @@ const misspellings={calbe:["cable","cables"],taxt:["text","tax"],teaxt:["text"],
 const validTech=new Set("filter unit fluid pressure equipment name hydraulic control system opto coupler phoenix contact type crossbar stainless steel bracket width thickness length range bar connector electrical pump assembly centrifugal bearing housing drawing number cable waterpump maintenance transmitter voltage current mm dc ac dek pn".split(/\s+/));
 // Read only the user's actual editor text. Inline suggestion controls are UI,
  // not document content; excluding them prevents button labels entering the text.
-const text=()=>{const clone=editor.cloneNode(true);clone.querySelectorAll(".inline-suggestions").forEach(n=>n.remove());return (clone.innerText||clone.textContent||"").replace(/\\u00a0/g," ")};
+const text=()=>{
+  const clone=editor.cloneNode(true);
+  clone.querySelectorAll(".inline-suggestions").forEach(n=>n.remove());
+  // Chrome's contenteditable inserts DIV/P blocks when Enter is pressed.
+  // Convert those block boundaries to real newline characters, while keeping
+  // inline spell-error spans joined to the surrounding text.
+  function collect(node){
+    if(node.nodeType===Node.TEXT_NODE)return node.nodeValue||"";
+    if(node.nodeType!==Node.ELEMENT_NODE)return "";
+    if(node.tagName==="BR")return "\n";
+    let out="";
+    for(const child of node.childNodes){
+      const isBlock=child.nodeType===Node.ELEMENT_NODE && /^(DIV|P|LI)$/.test(child.tagName);
+      if(isBlock && out && !out.endsWith("\n")) out+="\n";
+      out+=collect(child);
+      if(isBlock && !out.endsWith("\n")) out+="\n";
+    }
+    return out;
+  }
+  return collect(clone).replace(/\u00a0/g," ").replace(/\n+$/g,"");
+};
 const caseLike=(w,s)=>w===w.toUpperCase()?s.toUpperCase():w[0]===w[0].toUpperCase()?s[0].toUpperCase()+s.slice(1):s;
-function opts(w){let x=w.toLowerCase();if(personal.has(x)||ignored.has(x)||validTech.has(x))return[];const us={colour:["color"],favourite:["favorite"],centre:["center"],organise:["organize"],analyse:["analyze"]},uk={color:["colour"],favorite:["favourite"],center:["centre"],organize:["organise"],analyze:["analyse"]};return (($("language")?.value==="en_GB")?(uk[x]||misspellings[x]):(us[x]||misspellings[x]))||[]}
-function caretOffset(){let s=getSelection();if(!s.rangeCount||!editor.contains(s.anchorNode))return text().length;let r=s.getRangeAt(0).cloneRange();r.selectNodeContents(editor);r.setEnd(s.anchorNode,s.anchorOffset);return r.toString().length}
-function setCaret(n){let w=document.createTreeWalker(editor,NodeFilter.SHOW_TEXT),node,rem=n;while(node=w.nextNode()){if(rem<=node.length){let r=document.createRange();r.setStart(node,rem);r.collapse(true);let s=getSelection();s.removeAllRanges();s.addRange(r);return}rem-=node.length}editor.focus()}
+// The main checker uses a real Hunspell-compatible dictionary through Typo.js.
+// A small curated typo map remains as a fallback if the remote dictionary cannot load.
+const spellingEngines = { en_US: null, en_GB: null };
+let engineState = "loading";
+const technicalWords = new Set(("electrical electronics connector connectors cable cables bracket brackets crossbar stainless steel pressure transmitter transducer hydraulic pneumatic bearing bearings housing housings pump pumps valve valves actuator actuators relay relays optocoupler opto coupler phoenix contact terminal terminals circuit breaker fuse fuses capacitor capacitors resistor resistors sensor sensors switch switches motor motors gearbox gearboxes shaft shafts flange flanges gasket gaskets seal seals o-ring o rings fastener fasteners bolt bolts nut nuts washer washers screw screws drawing assembly equipment maintenance dimension dimensions thickness width length diameter voltage current frequency insulation conductor conductor's plc hmi vfd scada i/o dc ac mm cm kg kw kva rpm psi bar pa mpa no nc ip54 ip65 ip67 din rail panel mount pcb pcb's model serial part number part-number partnumber unspsc dek art no art.no p/n pn sku qty qty's" ).toLowerCase().split(/\s+/));
+function dictionaryLanguage(){return $("language")?.value==="en_GB"?"en_GB":"en_US"}
+function isProtectedWord(x){return personal.has(x)||ignored.has(x)||validTech.has(x)||technicalWords.has(x)}
+function fallbackOptions(x, language){
+  const us={colour:["color"],colours:["colors"],favourite:["favorite"],favourites:["favorites"],centre:["center"],centres:["centers"],organise:["organize"],organised:["organized"],organising:["organizing"],organisation:["organization"],analyse:["analyze"],analysed:["analyzed"],analysing:["analyzing"],behaviour:["behavior"],labour:["labor"],metre:["meter"],metres:["meters"],litre:["liter"],litres:["liters"],catalogue:["catalog"],catalogues:["catalogs"],travelling:["traveling"],travelled:["traveled"],traveller:["traveler"],theatre:["theater"],theatres:["theaters"],defence:["defense"],offence:["offense"],licence:["license"],grey:["gray"],programme:["program"],tyre:["tire"],jewellery:["jewelry"],cancelled:["canceled"],modelling:["modeling"]};
+  const uk={color:["colour"],colors:["colours"],favorite:["favourite"],favorites:["favourites"],center:["centre"],centers:["centres"],organize:["organise"],organized:["organised"],organizing:["organising"],organization:["organisation"],analyze:["analyse"],analyzed:["analysed"],analyzing:["analysing"],behavior:["behaviour"],labor:["labour"],meter:["metre"],meters:["metres"],liter:["litre"],liters:["litres"],catalog:["catalogue"],catalogs:["catalogues"],traveling:["travelling"],traveled:["travelled"],traveler:["traveller"],theater:["theatre"],theaters:["theatres"],defense:["defence"],offense:["offence"],license:["licence"],gray:["grey"],program:["programme"],tire:["tyre"],jewelry:["jewellery"],canceled:["cancelled"],modeling:["modelling"]};
+  return ((language==="en_GB")?(uk[x]||misspellings[x]):(us[x]||misspellings[x]))||[];
+}
+function opts(w){
+  const x=w.toLowerCase();
+  if(isProtectedWord(x))return [];
+  const language=dictionaryLanguage(), engine=spellingEngines[language];
+  const regional = fallbackOptions(x,language);
+  const regionalWrong = (language==="en_GB" && ({color:1,favorite:1,center:1,organize:1,analyze:1,behavior:1,labor:1,meter:1,liter:1,catalog:1,traveling:1}[x])) || (language==="en_US" && ({colour:1,favourite:1,centre:1,organise:1,analyse:1,behaviour:1,labour:1,metre:1,litre:1,catalogue:1,travelling:1}[x]));
+  if(regionalWrong && regional.length)return regional.map(v=>caseLike(w,v));
+  // Valid regional spellings absent from the US base dictionary should be accepted.
+  const regionalValid = new Set(["colour","colours","favourite","favourites","centre","centres","organise","organised","organising","organisation","analyse","analysed","analysing","behaviour","labour","metre","metres","litre","litres","catalogue","catalogues","travelling","travelled","traveller","theatre","theatres","defence","offence","licence","grey","programme","tyre","jewellery","cancelled","modelling"]);
+  if(language==="en_GB" && regionalValid.has(x))return [];
+  if(engine){
+    try { if(engine.check(w)) return []; const suggestions=engine.suggest(w).slice(0,5); return [...new Set([...regional,...suggestions.map(v=>caseLike(w,v))])].slice(0,5); }
+    catch(e) { /* use the safe fallback below */ }
+  }
+  return regional;
+}
+let dictionaryLoadPromise=null;
+async function loadSpellingEngine(language){
+  if(spellingEngines[language])return spellingEngines[language];
+  if(!dictionaryLoadPromise){
+    dictionaryLoadPromise=(async()=>{
+      if(typeof window.Typo!=="function")throw new Error("Typo.js did not load");
+      // Use the well-maintained English Hunspell dictionary as the shared base;
+      // UK/US vocabulary differences are handled explicitly in opts().
+      const base="https://cdn.jsdelivr.net/npm/dictionary-en@4.0.0/index";
+      const [affResponse,dicResponse]=await Promise.all([fetch(base+".aff"),fetch(base+".dic")]);
+      if(!affResponse.ok||!dicResponse.ok)throw new Error("Dictionary files could not be downloaded");
+      const [aff,dic]=await Promise.all([affResponse.text(),dicResponse.text()]);
+      if(!aff.trim()||!dic.trim())throw new Error("Dictionary files were empty");
+      const engine=new window.Typo("en_US",aff,dic);
+      if(typeof engine.check!=="function"||typeof engine.suggest!=="function")throw new Error("Spell-check engine initialisation failed");
+      spellingEngines.en_US=engine; spellingEngines.en_GB=engine;
+      return engine;
+    })().catch(error=>{dictionaryLoadPromise=null;throw error});
+  }
+  return dictionaryLoadPromise;
+}
+async function initializeDictionaries(){
+  const status=$("status");
+  if(status)status.textContent="Loading English spelling dictionary…";
+  const results=await Promise.allSettled([loadSpellingEngine("en_US"),loadSpellingEngine("en_GB")]);
+  engineState=results.some(r=>r.status==="fulfilled")?"ready":"fallback";
+  render(true);
+  if(status){
+    status.textContent=engineState==="ready"?"Dictionary ready · spelling suggestions enabled":"Offline fallback active · full dictionary unavailable";
+  }
+}
+function caretOffset(){
+  const sel=getSelection();
+  if(!sel.rangeCount||!editor.contains(sel.anchorNode))return text().length;
+  const target=sel.getRangeAt(0).cloneRange();
+  const walker=document.createTreeWalker(editor,NodeFilter.SHOW_TEXT);
+  let node,total=0;
+  while(node=walker.nextNode()){
+    if(node.parentElement?.closest(".inline-suggestions"))continue;
+    if(node===sel.anchorNode){return total+Math.min(sel.anchorOffset,node.length)}
+    const part=document.createRange();part.selectNodeContents(editor);
+    try{part.setEnd(node,node.length);total=part.toString().length}catch{}
+  }
+  return text().length;
+}
+function setCaret(n){
+  const walker=document.createTreeWalker(editor,NodeFilter.SHOW_TEXT);
+  let node,remaining=Math.max(0,n),last=null;
+  while(node=walker.nextNode()){
+    if(node.parentElement?.closest(".inline-suggestions"))continue;
+    last=node;
+    if(remaining<=node.length){
+      const range=document.createRange();range.setStart(node,remaining);range.collapse(true);
+      const sel=getSelection();sel.removeAllRanges();sel.addRange(range);return;
+    }
+    remaining-=node.length;
+  }
+  if(last){
+    const range=document.createRange();range.setStart(last,last.length);range.collapse(true);
+    const sel=getSelection();sel.removeAllRanges();sel.addRange(range);
+  }else editor.focus();
+}
 function act(label,fn,cls="inline-action"){let b=document.createElement("button");b.type="button";b.className=cls;b.textContent=label;b.contentEditable="false";b.onmousedown=e=>e.preventDefault();b.onclick=e=>{e.preventDefault();fn()};return b}
 
+function appendTextWithBreaks(parent,value){const parts=String(value).split("\n");parts.forEach((part,i)=>{if(part)parent.append(document.createTextNode(part));if(i<parts.length-1)parent.append(document.createElement("br"));});}
 function escapeHTML(value){return String(value).replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));}
 function updateComparison(original, corrected){
   const op=$("originalPreview"), cp=$("correctedPreview");
@@ -45,25 +153,123 @@ function updateComparison(original, corrected){
   const count=Math.max(changedA.size,changedB.size);
   $("changeSummary").textContent=count?`${count} changed word${count===1?"":"s"} highlighted`:"No corrections applied";
 }
-function render(keepCaret=false){let t=text(),caret=keepCaret?caretOffset():null,found=[],re=/[\p{L}\p{M}]+(?:['’][\p{L}\p{M}]+)*/gu,m;while(m=re.exec(t)){let o=opts(m[0]);if(o.length)found.push({w:m[0],s:m.index,e:m.index+m[0].length,o})}
-let frag=document.createDocumentFragment(),p=0;
-for(let it of found){frag.append(document.createTextNode(t.slice(p,it.s)));let err=document.createElement("span");err.className="spell-error";err.textContent=it.w;frag.append(err);let row=document.createElement("span");row.className="inline-suggestions";row.contentEditable="false";
-it.o.slice(0,4).forEach(v=>row.append(act(caseLike(it.w,v),()=>replace(it.s,it.e,caseLike(it.w,v)),"")));
-row.append(act("Ignore",()=>{ignored.add(it.w.toLowerCase());render(true)}));row.append(act("Add to dictionary",()=>{personal.add(it.w.toLowerCase());try{localStorage.setItem("toolboxSpellPersonalDictionary",JSON.stringify([...personal]))}catch{}render(true)}));frag.append(row);p=it.e}
-frag.append(document.createTextNode(t.slice(p)));editor.replaceChildren(frag);
-$("wordCount")&&($("wordCount").textContent=(t.match(/[\p{L}\p{M}]+(?:['’][\p{L}\p{M}]+)*/gu)||[]).length+" words");
-$("errorCount")&&($("errorCount").textContent=found.length+" issue"+(found.length===1?"":"s"));
-$("status")&&($("status").textContent=t.trim()?found.length+" possible spelling issue"+(found.length===1?"":"s")+" found":"Ready to check");
-updateComparison(comparisonOriginal || t, t);
-
-if(caret!==null)setCaret(caret)}
+let activeSuggestion=null;
+function closeSuggestionPopup(){
+  const popup=$("suggestionPopup");
+  if(popup){popup.hidden=true;popup.replaceChildren();}
+  activeSuggestion=null;
+}
+function showSuggestionPopup(err, info){
+  const popup=$("suggestionPopup");
+  if(!popup)return;
+  closeSuggestionPopup();
+  activeSuggestion=info;
+  info.o.slice(0,4).forEach(v=>popup.append(act(caseLike(info.w,v),()=>replace(info.s,info.e,caseLike(info.w,v)),"suggestion-choice")));
+  popup.append(act("Ignore",()=>{ignored.add(info.w.toLowerCase());closeSuggestionPopup();render(true)},"popup-action popup-ignore"));
+  popup.append(act("Add to dictionary",()=>{personal.add(info.w.toLowerCase());try{localStorage.setItem("toolboxSpellPersonalDictionary",JSON.stringify([...personal]))}catch{}closeSuggestionPopup();render(true)},"popup-action popup-add-dictionary"));
+  const wrap=$("editorWrap"), er=err.getBoundingClientRect(), wr=wrap.getBoundingClientRect();
+  popup.style.left=Math.max(6,Math.min(er.left-wr.left,wr.width-260))+"px";
+  popup.style.top=Math.min(er.bottom-wr.top+3,wrap.clientHeight-38)+"px";
+  popup.hidden=false;
+}
+function render(keepCaret=false){
+  const t=text(),caret=keepCaret?caretOffset():null,found=[];
+  const re=/[\p{L}\p{M}]+(?:['’][\p{L}\p{M}]+)*/gu;
+  let m;
+  while((m=re.exec(t))){const o=opts(m[0]);if(o.length)found.push({w:m[0],s:m.index,e:m.index+m[0].length,o});}
+  closeSuggestionPopup();
+  const frag=document.createDocumentFragment();let p=0;
+  for(const it of found){
+    appendTextWithBreaks(frag,t.slice(p,it.s));
+    const err=document.createElement("span");
+    err.className="spell-error";
+    err.textContent=it.w;
+    err.dataset.start=String(it.s);err.dataset.end=String(it.e);
+    err.dataset.word=it.w;
+    err.title="Click to view spelling suggestions";
+    frag.append(err);p=it.e;
+  }
+  appendTextWithBreaks(frag,t.slice(p));
+  editor.replaceChildren(frag);
+  $("wordCount")&&($("wordCount").textContent=(t.match(/[\p{L}\p{M}]+(?:['’][\p{L}\p{M}]+)*/gu)||[]).length+" words");
+  $("errorCount")&&($("errorCount").textContent=found.length+" issue"+(found.length===1?"":"s"));
+  $("status")&&($("status").textContent=t.trim()?found.length+" possible spelling issue"+(found.length===1?"":"s")+" found":"Ready to check");
+  updateComparison(comparisonOriginal || t,t);
+  if(caret!==null)setCaret(caret);
+}
+editor.addEventListener("click",e=>{
+  const err=e.target.closest(".spell-error");
+  if(!err){if(!e.target.closest("#suggestionPopup"))closeSuggestionPopup();return;}
+  const w=err.dataset.word, s=Number(err.dataset.start), end=Number(err.dataset.end);
+  showSuggestionPopup(err,{w,s,e:end,o:opts(w)});
+});
+document.addEventListener("click",e=>{
+  if(!e.target.closest(".spell-error")&&!e.target.closest("#suggestionPopup")) closeSuggestionPopup();
+});
+// A click or focus change elsewhere in the editor must also dismiss the popup.
+$("editor")?.addEventListener("click",e=>{
+  if(!e.target.closest(".spell-error")) closeSuggestionPopup();
+});
+$("editor")?.addEventListener("keydown",e=>{
+  if(e.key==="Escape") closeSuggestionPopup();
+});
 function replace(s,e,v){undoText=text();if(!comparisonOriginal||comparisonOriginal===text())comparisonOriginal=text();$("undoBtn")&&($("undoBtn").disabled=false);let t=text();editor.textContent=t.slice(0,s)+v+t.slice(e);render();setCaret(s+v.length);editor.focus()}
-editor.addEventListener("input",()=>{comparisonOriginal=text();render()});
-$("checkBtn")?.addEventListener("click",()=>render(true));
+// Handle Enter explicitly. Re-rendering a contenteditable immediately after its
+// native Enter action can collapse the browser-created DIV/BR and lose the line break.
+// Keep native contenteditable Enter behavior. Do not replace editor DOM on keydown.
+let checkTimer=null;
+let isChecking=false;
+function setChecking(active){
+  isChecking=active;
+  const btn=$("checkBtn");
+  if(!btn)return;
+  if(active){
+    btn.dataset.originalLabel ||= btn.textContent;
+    btn.classList.add("is-checking");
+    btn.disabled=true;
+    btn.textContent="Checking…";
+  }else{
+    btn.classList.remove("is-checking");
+    btn.disabled=false;
+    btn.textContent=btn.dataset.originalLabel||"Check spelling →";
+  }
+}
+const typingPauseMs = 900; // Wait until the user pauses before running spell analysis.
+function runSpellCheck(){
+  clearTimeout(checkTimer);
+  setChecking(true);
+  // Yield to the browser so the loading indicator appears before processing.
+  setTimeout(()=>{try{comparisonOriginal=text();render(true)}finally{setChecking(false)}},20);
+}
+function autoCheckEnabled(){
+  return $("autoCheck")?.checked === true;
+}
+function scheduleSpellCheck(){
+  clearTimeout(checkTimer);
+  if(!autoCheckEnabled()) return;
+  checkTimer=setTimeout(()=>{
+    if(!isChecking && autoCheckEnabled()) runSpellCheck();
+  }, typingPauseMs);
+}
+editor.addEventListener("input",()=>{
+  comparisonOriginal=text();
+  // Keep native editing responsive. Only analyze after the pause when auto-check is enabled.
+  scheduleSpellCheck();
+});
+editor.addEventListener("paste",()=>{
+  // Let the browser finish inserting pasted content; the input event schedules
+  // one check after the pause, but only when auto-check is enabled.
+  clearTimeout(checkTimer);
+});
+$("autoCheck")?.addEventListener("change",()=>{
+  clearTimeout(checkTimer);
+  if(autoCheckEnabled() && text().trim()) scheduleSpellCheck();
+});
+$("checkBtn")?.addEventListener("click",runSpellCheck);
 $("clearBtn")?.addEventListener("click",()=>{undoText=text();$("undoBtn")&&($("undoBtn").disabled=false);editor.textContent="";render();editor.focus()});
 $("undoBtn")?.addEventListener("click",()=>{if(undoText===null)return;let current=text();editor.textContent=undoText;undoText=current;render();});
 $("language")?.addEventListener("change",()=>render(true));
-$("autoCheck")?.addEventListener("change",()=>{if($("autoCheck").checked)render(true)});
+
 function download(n,c,t){let u=URL.createObjectURL(new Blob([c],{type:t+";charset=utf-8"})),a=document.createElement("a");a.href=u;a.download=n;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1000)}
 $("downloadTxtBtn")?.addEventListener("click",()=>download("spell-check-result.txt",text(),"text/plain"));
 $("txtFile")?.addEventListener("change",async e=>{let f=e.target.files?.[0];if(!f)return;undoText=text();editor.textContent=await f.text();$("fileName")&&($("fileName").textContent=f.name);render()});
@@ -135,7 +341,7 @@ function correctCell(value){
   const language=$("language")?.value||"en_US";
   const localPersonal=personal;
   return safeCell(value).replace(/[\p{L}\p{M}]+(?:['’][\p{L}\p{M}]+)*/gu,w=>{
-    const lower=w.toLowerCase();if(localPersonal.has(lower)||ignored.has(lower)||validTech.has(lower))return w;
+    const lower=w.toLowerCase();if(localPersonal.has(lower)||ignored.has(lower)||validTech.has(lower)||technicalWords.has(lower))return w;
     const us={colour:"color",favourite:"favorite",centre:"center",organise:"organize",analyse:"analyze"};
     const uk={color:"colour",favorite:"favourite",center:"centre",organize:"organise",analyze:"analyse"};
     const candidate=(language==="en_GB"?uk[lower]:us[lower])||misspellings[lower]?.[0];
@@ -224,6 +430,7 @@ $("downloadExcelBtn")?.addEventListener("click",()=>{
 });
 document.querySelectorAll("[data-view]").forEach(b=>b.addEventListener("click",()=>{document.querySelectorAll("[data-view]").forEach(x=>x.classList.toggle("active",x===b));let c=$("comparison");if(c){c.classList.toggle("single-original",b.dataset.view==="original");c.classList.toggle("single-corrected",b.dataset.view==="corrected")}}));
 render();
+initializeDictionaries().catch(()=>{engineState="fallback";render(true);if($("status"))$("status").textContent="Offline fallback active · full dictionary unavailable"});
 })();
 
 /* V2: reliable pointer-based resizing of the whole editor container. */
