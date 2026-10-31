@@ -14,7 +14,7 @@ Open `index.html` in a modern browser.
 All app scripts and the dictionary are bundled under `assets/`; no CDN or API calls are required.
 
 ## Current limitations
-- Text checking and CSV import/export are supported.
-- Native `.xlsx` and `.xls` workbook parsing is not enabled; CSV can be opened in Excel.
+- Text checking and text-result CSV export are supported. CSV column-by-column processing is not included in this build.
+- Native `.xlsx` and `.xls` workbook parsing is not enabled; save spreadsheets as CSV for now. The single-text editor is designed to keep spelling marks aligned with the text.
 - Dictionary-based suggestions are heuristic and may not always rank the intended correction first.
 - Personal dictionary entries are stored in the current browser's local storage.
