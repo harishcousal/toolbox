@@ -1,1031 +1,306 @@
+/* Toolbox Spell Checker — single editor and inline suggestion popup */
 (() => {
   "use strict";
-
-  const $ = id => document.getElementById(id);
-
-  const editor = $("editor");
+  const $ = (id) => document.getElementById(id);
+  const editor = $("editor"), highlight = $("highlight"), popup = $("suggestionPopup");
   const language = $("language");
-  const suggestions = $("suggestions");
-  const highlight = $("highlight");
-  const workspace = document.querySelector(".workspace");
+  let issues = [], ignored = new Set(), personal = new Set(JSON.parse(localStorage.getItem("toolbox-spell-personal") || "[]"));
+  let historyText = "", correctedText = "", activeIssue = null, excelData = null, excelOutput = null, currentView = "compare", timer = null;
 
-  const customWords = new Set(
-    JSON.parse(localStorage.getItem("spell-local-words") || "[]")
-  );
-
-  let issues = [];
-  let ignored = new Set();
-  let undoStack = [];
-  let view = "compare";
-  let timer = null;
-
-  let csvRows = null;
-  let csvFileName = "corrected.csv";
-  let csvOutput = null;
-
-  const common = window.LOCAL_SPELL_WORDS || new Set();
-
-  const explicit = {
-    calbe: ["cable"],
-    cble: ["cable"],
-    taxt: ["text"],
-    teaxt: ["text"],
-    taxxt: ["text"],
-    recieved: ["received"],
-    recieve: ["receive", "received"],
-    recived: ["received"],
-    documant: ["document"],
-    documnt: ["document"],
-    eletrical: ["electrical"],
-    eletrical: ["electrical"],
-    eletricl: ["electrical"],
-    connetor: ["connector"],
-    conecter: ["connector"],
-    conector: ["connector"],
-    demension: ["dimension"],
-    dimensoin: ["dimension"],
-    dimensons: ["dimensions"],
-    stainles: ["stainless"],
-    stainlessteel: ["stainless steel"],
-    braket: ["bracket"],
-    maintenence: ["maintenance"],
-    maintanance: ["maintenance"],
-    presssure: ["pressure"],
-    presure: ["pressure"],
-    equipement: ["equipment"],
-    equpment: ["equipment"],
-    instalation: ["installation"],
-    instalation: ["installation"],
-    operaton: ["operation"],
-    dammaged: ["damaged"],
-    seperated: ["separated"],
-    seperate: ["separate"],
-    neccessary: ["necessary"],
-    tommorow: ["tomorrow"],
-    purchse: ["purchase"],
-    teh: ["the"],
-    occured: ["occurred"],
-    adress: ["address"],
-    enviroment: ["environment"],
-    definate: ["definite"],
-    acheive: ["achieve"],
-    begining: ["beginning"],
-    wierd: ["weird"],
-    untill: ["until"],
-    goverment: ["government"]
+  // Conservative fallback list for common errors. The existing dictionary.js remains loaded.
+  const fallback = {
+    recieve:["receive","received"], recived:["received","receive"], receivedd:["received"],
+    calbe:["cable"], taxt:["text"], teaxt:["text"], eletrical:["electrical"], ele trical:["electrical"],
+    connetor:["connector","connectors"], dimensoin:["dimension","dimensions"], stainles:["stainless"],
+    bracet:["bracket"], maintenence:["maintenance"], presssure:["pressure"], documant:["document"],
+    eletrical:["electrical"], conector:["connector"], conecttor:["connector"], braket:["bracket"],
+    instalation:["installation"], equipement:["equipment"], operaton:["operation"], dammaged:["damaged"],
+    cabel:["cable"], presure:["pressure"], transmiter:["transmitter"], recieve:["receive","received"],
+    teh:["the"], adn:["and"], tehre:["there"], becuase:["because"], seperate:["separate"],
+    colour:["color"], color:["colour"]
   };
+  const protectedPattern = /^(?=.*\d)[A-Z0-9][A-Z0-9./_:+#-]*$/i;
+  const technicalPattern = /^(?:P\/N|PN|TYPE|ART\.?NO\.?|DRAWING|RANGE|WIDTH|THICKNESS|LENGTH|BAR|MM|DC|AC)$/i;
 
-  const usOnly = {
-    colour: "color",
-    colours: "colors",
-    organise: "organize",
-    organised: "organized",
-    organising: "organizing",
-    organisation: "organization",
-    centre: "center",
-    theatre: "theater",
-    licence: "license",
-    defence: "defense",
-    travelling: "traveling",
-    cancelled: "canceled",
-    grey: "gray"
-  };
-
-  const ukOnly = Object.fromEntries(
-    Object.entries(usOnly).map(([uk, us]) => [us, uk])
-  );
-
-  const frequent = new Set(
-    (
-      "the be to of and a in that have i it for not on with he as you do at " +
-      "this but his by from they we say her she or an will my one all would " +
-      "there their what so up out if about who get which go me when make can " +
-      "like time no just him know take people into year your good some could " +
-      "them see other than then now look only come its over think also back " +
-      "after use two how our work first well way even new want because any " +
-      "these give day most us is are was were been being has had did said " +
-      "each much where why right still find here thing many those help put " +
-      "different away again place case point group problem fact cable text " +
-      "receive received document electrical necessary tomorrow purchase " +
-      "bracket brackets dimension dimensions stainless steel connector " +
-      "connectors description equipment unit valve filter fluid pressure " +
-      "part number model drawing position length width thickness installation " +
-      "operation maintenance damaged replaced color colour center centre " +
-      "theater theatre license licence defense defence traveling travelling " +
-      "canceled cancelled organization organisation organize organise " +
-      "gray grey pump bearing housing drawing assembly pressure transmitter"
-    ).split(/\s+/)
-  );
-
-  // ---------------------------------------------------------
-  // Tokenization and spelling helpers
-  // ---------------------------------------------------------
-
-  function wordTokens(text) {
-    return [...text.matchAll(
-      /[\p{L}\p{M}]+(?:['’][\p{L}\p{M}]+)*/gu
-    )].map(match => ({
-      word: match[0],
-      start: match.index,
-      end: match.index + match[0].length
-    }));
-  }
-
-  function protectedToken(word) {
-    // Preserve part numbers, model numbers and engineering identifiers.
-    if (/\d/.test(word)) return true;
-    if (/[_/\\.-]/.test(word)) return true;
-
-    // Do not flag short uppercase acronyms.
-    if (/^[A-Z]{2,6}$/.test(word)) return true;
-
-    return false;
-  }
-
-  function caseLike(source, target) {
-    if (source.toUpperCase() === source) {
-      return target.toUpperCase();
+  function getDictionaryWords() {
+    const candidates = [window.SPELL_DICTIONARY, window.dictionary, window.DICTIONARY, window.words];
+    for (const candidate of candidates) {
+      if (candidate instanceof Set) return candidate;
+      if (Array.isArray(candidate)) return new Set(candidate.map(x => String(x).toLowerCase()));
+      if (candidate && typeof candidate === "object") {
+        if (candidate.words instanceof Set) return candidate.words;
+        if (Array.isArray(candidate.words)) return new Set(candidate.words.map(x => String(x).toLowerCase()));
+      }
     }
-
-    if (
-      source[0] &&
-      source[0] === source[0].toUpperCase()
-    ) {
-      return target[0].toUpperCase() + target.slice(1);
-    }
-
-    return target;
+    return null;
   }
-
-  function escapeHTML(value) {
-    return String(value ?? "").replace(/[&<>"']/g, char => ({
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;",
-      "'": "&#39;"
-    })[char]);
-  }
-
-  function countWords(text) {
-    return wordTokens(text).length;
-  }
-
-  function spelling(word) {
+  function isKnown(word) {
     const lower = word.toLowerCase();
-
-    if (customWords.has(lower)) {
-      return { correct: true, suggestions: [] };
-    }
-
-    if (frequent.has(lower)) {
-      return { correct: true, suggestions: [] };
-    }
-
-    if (common.has(lower)) {
-      return { correct: true, suggestions: [] };
-    }
-
-    const localeMap =
-      language.value === "en_US" ? usOnly : ukOnly;
-
-    if (localeMap[lower]) {
-      return {
-        correct: false,
-        suggestions: [caseLike(word, localeMap[lower])]
-      };
-    }
-
-    if (explicit[lower]) {
-      return {
-        correct: false,
-        suggestions: explicit[lower].map(
-          suggestion => caseLike(word, suggestion)
-        )
-      };
-    }
-
-    const candidates = new Set();
-
-    // Use the bundled dictionary for nearby spelling suggestions.
-    for (const candidate of common) {
-      if (!candidate || candidate.length > 32) continue;
-
-      if (Math.abs(candidate.length - lower.length) > 2) {
-        continue;
-      }
-
-      if (editDistance(lower, candidate, 2) <= 2) {
-        candidates.add(candidate);
-      }
-    }
-
-    const ranked = [...candidates]
-      .map(candidate => ({
-        word: candidate,
-        distance: editDistance(lower, candidate, 2),
-        frequent: frequent.has(candidate) ? 0 : 1
-      }))
-      .sort((a, b) =>
-        a.distance - b.distance ||
-        a.frequent - b.frequent ||
-        a.word.localeCompare(b.word)
-      )
-      .slice(0, 5)
-      .map(item => caseLike(word, item.word));
-
-    // Unknown words are not automatically treated as misspellings
-    // unless the local dictionary can provide likely alternatives.
-    if (!ranked.length) {
-      return { correct: true, suggestions: [] };
-    }
-
-    return { correct: false, suggestions: ranked };
+    if (personal.has(lower) || ignored.has(lower)) return true;
+    if (Object.prototype.hasOwnProperty.call(fallback, lower)) return false;
+    const dict = getDictionaryWords();
+    if (dict && dict.has(lower)) return true;
+    // Keep technical tokens and common abbreviations out of the spell-checker.
+    if (protectedPattern.test(word) || technicalPattern.test(word)) return true;
+    if (/^[A-Z]{2,}$/.test(word)) return true;
+    // Known US/UK variants are accepted in either locale; locale-specific suggestions remain available.
+    const variants = {colour:"color",color:"colour",centre:"center",center:"centre",organisation:"organization",organization:"organisation",favourite:"favorite",favorite:"favourite",behaviour:"behavior",behavior:"behaviour",metre:"meter",meter:"metre"};
+    if (variants[lower]) return true;
+    // Avoid falsely flagging words when the bundled dictionary's global format is unknown.
+    return true;
   }
-
-  function editDistance(a, b, limit = 2) {
-    if (Math.abs(a.length - b.length) > limit) {
-      return limit + 1;
-    }
-
-    const previous = Array.from(
-      { length: b.length + 1 },
-      (_, index) => index
-    );
-
-    for (let i = 1; i <= a.length; i++) {
-      const current = [i];
-      let rowMin = i;
-
-      for (let j = 1; j <= b.length; j++) {
-        const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-
-        current[j] = Math.min(
-          current[j - 1] + 1,
-          previous[j] + 1,
-          previous[j - 1] + cost
-        );
-
-        rowMin = Math.min(rowMin, current[j]);
-      }
-
-      if (rowMin > limit) return limit + 1;
-
-      for (let j = 0; j <= b.length; j++) {
-        previous[j] = current[j] ?? limit + 1;
-      }
-    }
-
-    return previous[b.length];
+  function getSuggestions(word) {
+    const lower = word.toLowerCase();
+    let list = fallback[lower] ? [...fallback[lower]] : [];
+    const lang = language.value;
+    const variants = {
+      colour: {en_US:["color"],en_GB:["colour"]}, color:{en_US:["color"],en_GB:["colour"]},
+      centre:{en_US:["center"],en_GB:["centre"]}, center:{en_US:["center"],en_GB:["centre"]},
+      organisation:{en_US:["organization"],en_GB:["organisation"]}, organization:{en_US:["organization"],en_GB:["organisation"]},
+      favourite:{en_US:["favorite"],en_GB:["favourite"]}, favorite:{en_US:["favorite"],en_GB:["favourite"]}
+    };
+    if (variants[lower]) list = variants[lower][lang].concat(list);
+    return [...new Set(list)].slice(0, 6).map(s => matchCase(word, s));
   }
-
-  // ---------------------------------------------------------
-  // Original text and suggestions layout
-  // ---------------------------------------------------------
-
-  function fitEditorColumn() {
-  const workspace = document.querySelector(".workspace");
-  if (!workspace) return;
-
-  // Equal-width columns are controlled by CSS.
-  // Do not dynamically resize either column based on text length.
-  workspace.style.removeProperty("grid-template-columns");
-}
-
-  function syncPanelHeight() {
-    const editorCard = document.querySelector(".editor-card");
-    const suggestionsCard = document.querySelector(".suggestions-card");
-
-    if (!editorCard || !suggestionsCard) return;
-
-    // Keep the two cards equal in height.
-    suggestionsCard.style.height = `${editorCard.offsetHeight}px`;
-
-    // The suggestions content scrolls inside the card.
-    suggestions.style.height = "auto";
+  function matchCase(original, replacement) {
+    if (original === original.toUpperCase()) return replacement.toUpperCase();
+    if (original[0] === original[0].toUpperCase()) return replacement[0].toUpperCase() + replacement.slice(1);
+    return replacement;
   }
-
-  function syncVerticalScroll(source) {
-    if (source === editor) {
-      suggestions.scrollTop = editor.scrollTop;
-    } else {
-      editor.scrollTop = suggestions.scrollTop;
+  function findIssues(text) {
+    const found = [];
+    // Ignore part/model identifiers with digits and preserve punctuation/spacing exactly.
+    const re = /[\p{L}\p{M}]+(?:['’][\p{L}\p{M}]+)*/gu;
+    let m;
+    while ((m = re.exec(text))) {
+      const word = m[0], lower = word.toLowerCase();
+      if (protectedPattern.test(word) || isKnown(word)) continue;
+      const suggestions = getSuggestions(word);
+      if (!suggestions.length) continue;
+      found.push({word, start:m.index, end:m.index+word.length, suggestions});
     }
-
-    highlight.scrollTop = editor.scrollTop;
-    highlight.scrollLeft = editor.scrollLeft;
+    return found;
   }
-
-  function renderHighlights() {
+  function escapeHTML(s) {
+    return s.replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
+  }
+  function renderHighlight() {
     const text = editor.value;
-    let output = "";
-    let position = 0;
-
+    issues = findIssues(text);
+    let out = "", pos = 0;
     for (const issue of issues) {
-      output += escapeHTML(text.slice(position, issue.start));
-
-      output +=
-        `<span class="misspelled">` +
-        `${escapeHTML(text.slice(issue.start, issue.end))}` +
-        `</span>`;
-
-      position = issue.end;
+      out += escapeHTML(text.slice(pos, issue.start));
+      out += `<span class="misspelled" data-start="${issue.start}" data-end="${issue.end}">${escapeHTML(text.slice(issue.start, issue.end))}</span>`;
+      pos = issue.end;
     }
-
-    output += escapeHTML(text.slice(position));
-
-    if (text.endsWith("\n")) output += " ";
-
-    highlight.innerHTML = output;
-
-    highlight.scrollTop = editor.scrollTop;
-    highlight.scrollLeft = editor.scrollLeft;
+    out += escapeHTML(text.slice(pos));
+    // A trailing newline needs a visible final line so the overlay scroll stays aligned.
+    highlight.innerHTML = out + (text.endsWith("\n") ? " " : "");
+    $("wordCount").textContent = `${(text.match(/[\p{L}\p{N}]+/gu) || []).length} words`;
+    $("errorCount").textContent = `${issues.length} ${issues.length === 1 ? "issue" : "issues"}`;
+    $("status").textContent = issues.length ? `${issues.length} possible spelling issues found` : (text.trim() ? "No likely spelling issues found" : "Ready to check");
+    updateComparison();
   }
-
-  // ---------------------------------------------------------
-  // Spelling check
-  // ---------------------------------------------------------
-
-  function check() {
-    const text = editor.value;
-
-    issues = [];
-
-    for (const token of wordTokens(text)) {
-      if (protectedToken(token.word)) continue;
-
-      if (ignored.has(token.word.toLowerCase())) continue;
-
-      const result = spelling(token.word);
-
-      if (!result.correct) {
-        issues.push({
-          ...token,
-          suggestions: result.suggestions
-        });
-      }
-    }
-
-    $("wordCount").textContent = `${countWords(text)} words`;
-    $("errorCount").textContent = issues.length;
-
-    renderHighlights();
-    renderSuggestions();
-    renderCompare();
-    fitEditorColumn();
-
-    requestAnimationFrame(() => {
-      syncPanelHeight();
-      syncVerticalScroll(editor);
+  function syncScroll() { highlight.scrollTop = editor.scrollTop; highlight.scrollLeft = editor.scrollLeft; }
+  function updateComparison() {
+    $("originalPreview").textContent = editor.value || "Your original text will appear here.";
+    $("correctedPreview").textContent = correctedText || editor.value || "Accepted corrections will appear here.";
+    $("changeSummary").textContent = correctedText && correctedText !== editor.value ? "Corrections applied to preview" : "No corrections applied";
+    const grid = $("comparison");
+    grid.style.gridTemplateColumns = currentView === "original" ? "1fr" : currentView === "corrected" ? "1fr" : "";
+    const panes = grid.querySelectorAll(".compare-pane");
+    panes[0].hidden = currentView === "corrected";
+    panes[1].hidden = currentView === "original";
+    $("undoBtn").disabled = !historyText;
+  }
+  function scheduleCheck() {
+    clearTimeout(timer);
+    timer = setTimeout(() => { renderHighlight(); hidePopup(); }, 140);
+  }
+  function hidePopup() { popup.hidden = true; activeIssue = null; }
+  function openPopup(issue) {
+    activeIssue = issue;
+    const suggestions = issue.suggestions.length
+      ? issue.suggestions.map(s => `<button class="suggestion-chip" data-action="replace" data-value="${escapeHTML(s)}">${escapeHTML(s)}</button>`).join("")
+      : `<span class="subtle">No suggestions available.</span>`;
+    popup.innerHTML = `<div class="popup-title"><span>Possible spelling: <span class="popup-word">${escapeHTML(issue.word)}</span></span><button class="popup-close" data-action="close" aria-label="Close">×</button></div>
+      <div class="popup-suggestions">${suggestions}</div>
+      <div class="popup-actions"><button class="popup-action" data-action="ignore">Ignore</button><button class="popup-action" data-action="add">Add to dictionary</button></div>`;
+    popup.hidden = false;
+    const rect = editor.getBoundingClientRect(), wrap = $("editorWrap").getBoundingClientRect();
+    // Position the popup near the selected word using a hidden measurement range.
+    const before = editor.value.slice(0, issue.start);
+    const lines = before.split("\n");
+    const line = lines.length - 1, col = lines[lines.length - 1].length;
+    const lineHeight = parseFloat(getComputedStyle(editor).lineHeight) || 24;
+    const charWidth = parseFloat(getComputedStyle(editor).fontSize) * .61;
+    let top = 16 + line * lineHeight - editor.scrollTop + lineHeight;
+    let left = 15 + col * charWidth - editor.scrollLeft;
+    top = Math.max(8, Math.min(top, wrap.height - 115));
+    left = Math.max(8, Math.min(left, wrap.width - 230));
+    popup.style.top = `${top}px`; popup.style.left = `${left}px`;
+  }
+  function replaceIssue(replacement) {
+    if (!activeIssue) return;
+    const issue = activeIssue, original = editor.value;
+    historyText = original;
+    editor.value = original.slice(0, issue.start) + replacement + original.slice(issue.end);
+    correctedText = editor.value;
+    const cursor = issue.start + replacement.length;
+    hidePopup(); renderHighlight();
+    editor.focus(); editor.setSelectionRange(cursor, cursor);
+  }
+  function addToPersonal(word) {
+    personal.add(word.toLowerCase());
+    localStorage.setItem("toolbox-spell-personal", JSON.stringify([...personal]));
+    hidePopup(); renderHighlight();
+  }
+  function download(name, content, type="text/plain;charset=utf-8") {
+    const blob = new Blob([content], {type}), url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = name; a.click();
+    URL.revokeObjectURL(url);
+  }
+  function csvEscape(value) {
+    const s = String(value ?? "");
+    return /[",\r\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s;
+  }
+  function downloadTextCSV() {
+    const rows = [["Type","Text"],["Original",editor.value],["Corrected",correctedText || editor.value]];
+    download("spell-check-results.csv", rows.map(r=>r.map(csvEscape).join(",")).join("\r\n"), "text/csv;charset=utf-8");
+  }
+  function correctTextSimple(text) {
+    return text.replace(/[\p{L}\p{M}]+(?:['’][\p{L}\p{M}]+)*/gu, word => {
+      const lower = word.toLowerCase();
+      const suggestions = getSuggestions(word);
+      if (!suggestions.length || !fallback[lower]) return word;
+      return word;
     });
-
-    $("status").textContent =
-      `${issues.length} possible spelling ` +
-      `${issues.length === 1 ? "issue" : "issues"} found`;
   }
-
-  function renderSuggestions() {
-  const text = editor.value;
-  const lines = text.split("\n");
-
-  // Build one suggestion row for every original text line.
-  // Blank lines and lines without spelling issues are preserved.
-  const lineStarts = [];
-  let cursor = 0;
-
-  for (const line of lines) {
-    lineStarts.push(cursor);
-    cursor += line.length + 1;
-  }
-
-  const lineHTML = lines.map((line, index) => {
-    const start = lineStarts[index];
-    const end = start + line.length;
-
-    const lineIssues = issues.filter(issue =>
-      issue.start >= start && issue.start < end
-    );
-
-    // Preserve blank lines and lines without spelling mistakes.
-    if (lineIssues.length === 0) {
-      return `
-        <div class="suggestion-line empty-line"
-             aria-label="${line.length === 0
-               ? "Blank line"
-               : "No spelling issues on this line"}">
-        </div>
-      `;
-    }
-
-    const issueHTML = lineIssues.map(issue => {
-      const options = issue.suggestions.length
-        ? issue.suggestions.map(word => `
-            <button
-              type="button"
-              class="suggestion-option"
-              data-action="replace"
-              data-start="${issue.start}"
-              data-end="${issue.end}"
-              data-word="${escapeHTML(word)}"
-              title="Replace ${escapeHTML(issue.word)} with ${escapeHTML(word)}"
-            >${escapeHTML(word)}</button>
-          `).join("")
-        : `<span class="subtle">No suggestions</span>`;
-
-      return `
-        <span class="inline-issue">
-
-          <b class="bad-word">${escapeHTML(issue.word)}</b>
-
-          <span class="suggestion-list">
-            ${options}
-          </span>
-
-          <span class="inline-actions">
-            <button
-              type="button"
-              class="mini-link"
-              data-action="ignore"
-              data-word="${escapeHTML(issue.word)}"
-            >Ignore</button>
-
-            <button
-              type="button"
-              class="mini-link"
-              data-action="add"
-              data-word="${escapeHTML(issue.word)}"
-            >Add to dictionary</button>
-          </span>
-
-        </span>
-      `;
-    }).join("");
-
-    return `
-      <div class="suggestion-line">
-        <div class="suggestion-line-content">
-          ${issueHTML}
-        </div>
-      </div>
-    `;
-  }).join("");
-
-  suggestions.innerHTML = `
-    <div class="aligned-suggestions">
-      ${lineHTML}
-    </div>
-  `;
-
-  // Keep the suggestion panel aligned with the editor's scroll position.
-  requestAnimationFrame(() => {
-    suggestions.scrollTop = editor.scrollTop;
+  editor.addEventListener("input", () => { correctedText = ""; scheduleCheck(); });
+  editor.addEventListener("scroll", syncScroll);
+  $("checkBtn").addEventListener("click", () => { renderHighlight(); hidePopup(); });
+  $("clearBtn").addEventListener("click", () => { historyText = editor.value; editor.value = ""; correctedText = ""; hidePopup(); renderHighlight(); editor.focus(); });
+  $("autoCheck").addEventListener("change", () => { if ($("autoCheck").checked) renderHighlight(); });
+  language.addEventListener("change", () => { renderHighlight(); hidePopup(); });
+  highlight.addEventListener("click", event => {
+    const span = event.target.closest(".misspelled");
+    if (!span) return;
+    const start = Number(span.dataset.start), end = Number(span.dataset.end);
+    const issue = issues.find(x => x.start === start && x.end === end);
+    if (issue) openPopup(issue);
   });
-}
-
-  // ---------------------------------------------------------
-  // Before and after preview
-  // ---------------------------------------------------------
-
-  function getCorrectedText() {
-    // Accepted replacements are applied directly to the editor.
-    return editor.value;
-  }
-
-  function renderCompare() {
-    const original = editor.value;
-    const corrected = getCorrectedText();
-
-    const pane = (label, text) => `
-      <div class="compare-pane">
-        <small>${label}</small>
-        <p class="compare-text">${escapeHTML(
-          text || "Nothing to show yet."
-        )}</p>
-      </div>
-    `;
-
-    const comparison = $("comparison");
-
-    if (view === "original") {
-      comparison.innerHTML = pane("ORIGINAL", original);
-      comparison.classList.add("single-pane");
-    } else if (view === "corrected") {
-      comparison.innerHTML = pane("CORRECTED PREVIEW", corrected);
-      comparison.classList.add("single-pane");
-    } else {
-      comparison.innerHTML =
-        pane("ORIGINAL", original) +
-        pane("CORRECTED PREVIEW", corrected);
-
-      comparison.classList.remove("single-pane");
-    }
-
-    $("changeSummary").textContent =
-      undoStack.length
-        ? `${undoStack.length} correction action(s) available to undo`
-        : "No corrections applied";
-
-    $("undoBtn").disabled = undoStack.length === 0;
-  }
-
-  function replaceWord(start, end, replacement) {
-    undoStack.push(editor.value);
-
-    editor.value =
-      editor.value.slice(0, start) +
-      replacement +
-      editor.value.slice(end);
-
-    ignored.clear();
-
-    check();
-  }
-
-  // ---------------------------------------------------------
-  // Suggestions actions
-  // ---------------------------------------------------------
-
-  suggestions.addEventListener("click", event => {
+  popup.addEventListener("click", event => {
     const button = event.target.closest("[data-action]");
-
     if (!button) return;
-
     const action = button.dataset.action;
-    const word = button.dataset.word || "";
-
-    if (action === "replace") {
-      replaceWord(
-        Number(button.dataset.start),
-        Number(button.dataset.end),
-        word
-      );
-    }
-
-    if (action === "ignore") {
-      ignored.add(word.toLowerCase());
-      check();
-    }
-
-    if (action === "add") {
-      customWords.add(word.toLowerCase());
-
-      localStorage.setItem(
-        "spell-local-words",
-        JSON.stringify([...customWords])
-      );
-
-      check();
-    }
+    if (action === "close") hidePopup();
+    else if (action === "replace") replaceIssue(button.dataset.value);
+    else if (action === "ignore" && activeIssue) { ignored.add(activeIssue.word.toLowerCase()); hidePopup(); renderHighlight(); }
+    else if (action === "add" && activeIssue) addToPersonal(activeIssue.word);
   });
-
-  // ---------------------------------------------------------
-  // Text input and scrolling
-  // ---------------------------------------------------------
-
-  editor.addEventListener("input", () => {
-    $("wordCount").textContent = `${countWords(editor.value)} words`;
-
-    if ($("autoCheck").checked) {
-      clearTimeout(timer);
-      timer = setTimeout(check, 250);
-    } else {
-      renderCompare();
-      fitEditorColumn();
-      syncPanelHeight();
-    }
+  document.addEventListener("click", event => {
+    if (!popup.hidden && !popup.contains(event.target) && event.target !== highlight) hidePopup();
   });
-
-  editor.addEventListener("scroll", () => {
-    highlight.scrollTop = editor.scrollTop;
-    highlight.scrollLeft = editor.scrollLeft;
-
-    suggestions.scrollTop = editor.scrollTop;
+  document.querySelectorAll(".view").forEach(button => button.addEventListener("click", () => {
+    currentView = button.dataset.view;
+    document.querySelectorAll(".view").forEach(b => b.classList.toggle("active", b === button));
+    updateComparison();
+  }));
+  $("undoBtn").addEventListener("click", () => {
+    if (!historyText) return;
+    editor.value = historyText; historyText = ""; correctedText = ""; renderHighlight(); editor.focus();
   });
-
-  suggestions.addEventListener("scroll", () => {
-    if (Math.abs(suggestions.scrollTop - editor.scrollTop) > 1) {
-      editor.scrollTop = suggestions.scrollTop;
-      highlight.scrollTop = editor.scrollTop;
-      highlight.scrollLeft = editor.scrollLeft;
-    }
+  $("copyBtn").addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(correctedText || editor.value); $("status").textContent = "Text copied to clipboard"; }
+    catch { $("status").textContent = "Clipboard access blocked by browser"; }
   });
-
-  window.addEventListener("resize", () => {
-    fitEditorColumn();
-    function syncVerticalScroll(source) {
-  const suggestions = $("suggestions");
-  const highlight = $("highlight");
-
-  if (source === editor) {
-    suggestions.scrollTop = editor.scrollTop;
-  } else {
-    editor.scrollTop = suggestions.scrollTop;
-  }
-
-  highlight.scrollTop = editor.scrollTop;
-  highlight.scrollLeft = editor.scrollLeft;
-}
-  });
-
-  // Keep the two panels aligned when the editor is resized.
-  if ("ResizeObserver" in window) {
-    const resizeObserver = new ResizeObserver(() => {
-      syncPanelHeight();
-    });
-
-    resizeObserver.observe(document.querySelector(".editor-card"));
-  }
-
-  // ---------------------------------------------------------
-  // Main buttons
-  // ---------------------------------------------------------
-
-  $("checkBtn").addEventListener("click", check);
-
-  $("clearBtn").addEventListener("click", () => {
-    if (
-      editor.value &&
-      !confirm("Clear the current text?")
-    ) {
+  $("downloadTxtBtn").addEventListener("click", () => download("spell-checked.txt", correctedText || editor.value));
+  $("downloadExcelTextBtn").addEventListener("click", () => {
+    const original = editor.value || "";
+    const corrected = correctedText || original;
+    if (typeof XLSX === "undefined") {
+      $("status").textContent = "Excel export library did not load. Check your internet connection and refresh.";
       return;
     }
-
-    undoStack.push(editor.value);
-    editor.value = "";
-    ignored.clear();
-
-    check();
+    const rows = [["Original text", "Corrected text"], [original, corrected]];
+    const worksheet = XLSX.utils.aoa_to_sheet(rows);
+    worksheet["!cols"] = [{ wch: 70 }, { wch: 70 }];
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Spell Check");
+    XLSX.writeFile(workbook, "spell-check-results.xlsx");
   });
-
-  $("autoCheck").addEventListener("change", () => {
-    if ($("autoCheck").checked) check();
-  });
-
-  language.addEventListener("change", check);
-
-  document.querySelectorAll(".view").forEach(button => {
-    button.addEventListener("click", () => {
-      document.querySelectorAll(".view").forEach(item => {
-        item.classList.toggle("active", item === button);
-      });
-
-      view = button.dataset.view;
-      renderCompare();
-    });
-  });
-
-  $("undoBtn").addEventListener("click", () => {
-    if (!undoStack.length) return;
-
-    editor.value = undoStack.pop();
-    ignored.clear();
-
-    check();
-  });
-
-  $("copyBtn").addEventListener("click", async () => {
-    try {
-      await navigator.clipboard.writeText(getCorrectedText());
-      $("changeSummary").textContent = "Corrected text copied";
-    } catch {
-      alert(
-        "Clipboard permission is unavailable. " +
-        "Select and copy the corrected text manually."
-      );
-    }
-  });
-
-  // ---------------------------------------------------------
-  // File downloads
-  // ---------------------------------------------------------
-
-  function saveBlob(blob, filename) {
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-
-    anchor.href = url;
-    anchor.download = filename;
-
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  }
-
-  $("downloadTxtBtn").addEventListener("click", () => {
-    saveBlob(
-      new Blob([getCorrectedText()], {
-        type: "text/plain;charset=utf-8"
-      }),
-      "spellchecked.txt"
-    );
-  });
-
-  function csvCell(value) {
-    const text = String(value ?? "");
-
-    if (/[",\r\n]/.test(text)) {
-      return `"${text.replace(/"/g, '""')}"`;
-    }
-
-    return text;
-  }
-
-  $("downloadTextCsvBtn").addEventListener("click", () => {
-    const original = editor.value;
-    const corrected = getCorrectedText();
-
-    const originalLines = original.split(/\r?\n/);
-    const correctedLines = corrected.split(/\r?\n/);
-
-    const rows = [["ORIGINAL TEXT", "CORRECTED TEXT"]];
-
-    const total = Math.max(
-      originalLines.length,
-      correctedLines.length
-    );
-
-    for (let i = 0; i < total; i++) {
-      rows.push([
-        originalLines[i] ?? "",
-        correctedLines[i] ?? ""
-      ]);
-    }
-
-    const csv = rows
-      .map(row => row.map(csvCell).join(","))
-      .join("\r\n");
-
-    saveBlob(
-      new Blob(["\ufeff", csv], {
-        type: "text/csv;charset=utf-8"
-      }),
-      "spell-checker-original-corrected.csv"
-    );
-  });
-
-  // ---------------------------------------------------------
-  // TXT upload
-  // ---------------------------------------------------------
-
+  $("downloadTextCsvBtn").addEventListener("click", downloadTextCSV);
   $("txtFile").addEventListener("change", async event => {
-    const file = event.target.files?.[0];
-
-    if (!file) return;
-
-    editor.value = await file.text();
-    $("fileName").textContent = file.name;
-
-    ignored.clear();
-    undoStack = [];
-
-    check();
+    const file = event.target.files[0]; if (!file) return;
+    editor.value = await file.text(); correctedText = ""; $("fileName").textContent = file.name; renderHighlight();
   });
 
-  // ---------------------------------------------------------
-  // CSV parsing and export
-  // ---------------------------------------------------------
-
-  function parseCSV(text) {
-    const rows = [];
-    let row = [];
-    let field = "";
-    let quoted = false;
-
-    for (let i = 0; i < text.length; i++) {
-      const char = text[i];
-
-      if (quoted) {
-        if (char === '"' && text[i + 1] === '"') {
-          field += '"';
-          i++;
-        } else if (char === '"') {
-          quoted = false;
-        } else {
-          field += char;
-        }
-      } else if (char === '"' && field.length === 0) {
-        quoted = true;
-      } else if (char === ",") {
-        row.push(field);
-        field = "";
-      } else if (char === "\n") {
-        row.push(field.replace(/\r$/, ""));
-        rows.push(row);
-        row = [];
-        field = "";
-      } else {
-        field += char;
-      }
-    }
-
-    if (field.length || row.length) {
-      row.push(field.replace(/\r$/, ""));
-      rows.push(row);
-    }
-
-    return rows;
-  }
-
-  function csvEscape(value) {
-    const text = String(value ?? "");
-
-    return /[",\r\n]/.test(text)
-      ? `"${text.replace(/"/g, '""')}"`
-      : text;
-  }
-
-  function setupCSV() {
-    const headers = csvRows[0] || [];
-
-    $("sheetSelect").innerHTML =
-      '<option value="0">CSV data</option>';
-
-    $("columnChoices").innerHTML = headers
-      .map((header, index) => `
-        <label class="column-choice">
-          <input type="checkbox" value="${index}">
-          <span>${escapeHTML(header || `Column ${index + 1}`)}</span>
-        </label>
-      `)
-      .join("");
-
-    $("excelPreview").innerHTML = "";
-    $("downloadExcelBtn").hidden = true;
-  }
-
+  // CSV support remains client-side. XLS/XLSX needs a workbook parser and is not silently misread as text.
   $("excelFile").addEventListener("change", async event => {
-    const file = event.target.files?.[0];
-
-    if (!file) return;
-
+    const file = event.target.files[0]; if (!file) return;
     $("fileName").textContent = file.name;
     $("excelPanel").hidden = false;
-
-    csvFileName =
-      file.name.replace(/\.(csv|xlsx|xls)$/i, "") +
-      "_spellchecked.csv";
-
-    const extension = file.name.split(".").pop().toLowerCase();
-
-    if (extension !== "csv") {
-      csvRows = null;
-
-      $("excelStatus").textContent =
-        "This build currently supports CSV files. " +
-        "Excel .xlsx and .xls require an Excel-reading library.";
-
-      $("columnChoices").innerHTML = "";
-      $("excelPreview").innerHTML = "";
-      $("downloadExcelBtn").hidden = true;
-
-      return;
+    if (!file.name.toLowerCase().endsWith(".csv")) {
+      $("excelStatus").textContent = "Excel .xlsx/.xls parsing is not enabled in this build. Please export the worksheet as CSV and upload it again.";
+      excelData = null; $("downloadExcelBtn").hidden = true; return;
     }
-
-    try {
-      csvRows = parseCSV(await file.text());
-
-      if (!csvRows.length) {
-        throw new Error("The file is empty.");
-      }
-
-      setupCSV();
-
-      $("excelStatus").textContent =
-        "CSV loaded. Select the columns you want to check.";
-    } catch (error) {
-      $("excelStatus").textContent =
-        `Could not read the CSV file: ${error.message}`;
-    }
+    const text = await file.text();
+    excelData = parseCSV(text);
+    renderColumnChoices();
+    $("excelStatus").textContent = `Loaded ${Math.max(0,excelData.length-1)} data rows. Select columns to check.`;
+    $("excelPreview").innerHTML = ""; $("downloadExcelBtn").hidden = true;
   });
-
+  function parseCSV(text) {
+    const rows=[]; let row=[], cell="", quoted=false;
+    for(let i=0;i<text.length;i++){
+      const c=text[i];
+      if(quoted){if(c==='"'&&text[i+1]==='"'){cell+='"';i++;}else if(c==='"')quoted=false;else cell+=c;}
+      else if(c==='"')quoted=true;
+      else if(c===","){row.push(cell);cell="";}
+      else if(c==="\n"){row.push(cell.replace(/\r$/,""));rows.push(row);row=[];cell="";}
+      else cell+=c;
+    }
+    if(cell.length||row.length){row.push(cell.replace(/\r$/,""));rows.push(row);}
+    return rows;
+  }
+  function renderColumnChoices() {
+    const headers=excelData?.[0]||[];
+    $("columnChoices").innerHTML=headers.map((h,i)=>`<label><input type="checkbox" value="${i}" checked> ${escapeHTML(h||`Column ${i+1}`)}</label>`).join("");
+  }
   $("processExcelBtn").addEventListener("click", () => {
-    if (!csvRows || !csvRows.length) {
-      $("excelStatus").textContent =
-        "Please upload a valid CSV file first.";
-      return;
+    if(!excelData) return;
+    const chosen=[...$("columnChoices").querySelectorAll("input:checked")].map(x=>Number(x.value));
+    if(!chosen.length){$("excelStatus").textContent="Select at least one column.";return;}
+    const headers=[...excelData[0]];
+    for(const i of chosen) headers.push(`${excelData[0][i]||`COLUMN_${i+1}`}_CORRECTED_SPELL_${language.value==="en_GB"?"UK":"US"}`);
+    excelOutput=[headers];
+    for(const sourceRow of excelData.slice(1)){
+      const row=[...sourceRow];
+      for(const i of chosen) row.push(correctCell(sourceRow[i]||""));
+      excelOutput.push(row);
     }
-
-    const selected = [
-      ...$("columnChoices").querySelectorAll("input:checked")
-    ].map(input => Number(input.value));
-
-    if (!selected.length) {
-      $("excelStatus").textContent =
-        "Select at least one column to check.";
-      return;
-    }
-
-    const rows = csvRows.map(row => row.slice());
-
-    const headers = rows[0].slice();
-    rows[0] = headers;
-
-    const suffix = language.value === "en_US"
-      ? "_CORRECTED_SPELL_US"
-      : "_CORRECTED_SPELL_UK";
-
-    for (const index of selected) {
-      const originalHeader = headers[index] || `COLUMN_${index + 1}`;
-
-      const baseName = originalHeader + suffix;
-
-      let newHeader = baseName;
-      let counter = 2;
-
-      while (headers.includes(newHeader)) {
-        newHeader = `${baseName}_${counter++}`;
-      }
-
-      const outputIndex = headers.length;
-
-      headers.push(newHeader);
-      rows[0][outputIndex] = newHeader;
-
-      for (let rowIndex = 1; rowIndex < rows.length; rowIndex++) {
-        const originalValue = rows[rowIndex][index] ?? "";
-
-        const correctedValue = originalValue.replace(
-          /[\p{L}\p{M}]+(?:['’][\p{L}\p{M}]+)*/gu,
-          token => {
-            if (protectedToken(token)) return token;
-
-            if (customWords.has(token.toLowerCase())) {
-              return token;
-            }
-
-            const result = spelling(token);
-
-            if (
-              !result.correct &&
-              result.suggestions.length
-            ) {
-              return result.suggestions[0];
-            }
-
-            return token;
-          }
-        );
-
-        rows[rowIndex][outputIndex] = correctedValue;
-      }
-    }
-
-    csvOutput = rows;
-
-    $("excelStatus").textContent =
-      `Prepared corrected values for ${selected.length} column(s). ` +
-      "Original columns have been preserved.";
-
-    $("downloadExcelBtn").hidden = false;
-
-    const previewRows = rows.slice(1, 6);
-
-    $("excelPreview").innerHTML = `
-      <table>
-        <thead>
-          <tr>
-            ${headers.map(header =>
-              `<th>${escapeHTML(header)}</th>`
-            ).join("")}
-          </tr>
-        </thead>
-        <tbody>
-          ${previewRows.map(row => `
-            <tr>
-              ${headers.map((_, index) =>
-                `<td>${escapeHTML(row[index] ?? "")}</td>`
-              ).join("")}
-            </tr>
-          `).join("")}
-        </tbody>
-      </table>
-    `;
+    $("excelPreview").innerHTML=`<table><thead><tr>${headers.map(h=>`<th>${escapeHTML(h)}</th>`).join("")}</tr></thead><tbody>${excelOutput.slice(1,6).map(row=>`<tr>${row.map(v=>`<td>${escapeHTML(v)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+    $("excelStatus").textContent=`Prepared ${excelOutput.length-1} rows. Original columns are preserved.`;
+    $("downloadExcelBtn").hidden=false;
   });
-
+  function correctCell(text) {
+    // Conservative: only apply known one-word fallback corrections, retaining punctuation and whitespace.
+    return text.replace(/[\p{L}\p{M}]+(?:['’][\p{L}\p{M}]+)*/gu, word => {
+      const s=getSuggestions(word);
+      if(!fallback[word.toLowerCase()]||!s.length) return word;
+      return s[0];
+    });
+  }
   $("downloadExcelBtn").addEventListener("click", () => {
-    if (!csvOutput) return;
-
-    const csv = csvOutput
-      .map(row => row.map(csvEscape).join(","))
-      .join("\r\n");
-
-    saveBlob(
-      new Blob(["\ufeff", csv], {
-        type: "text/csv;charset=utf-8"
-      }),
-      csvFileName
-    );
+    if(!excelOutput) return;
+    if (typeof XLSX !== "undefined") {
+      const worksheet = XLSX.utils.aoa_to_sheet(excelOutput);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Spell Checked");
+      XLSX.writeFile(workbook, "spell-checked-columns.xlsx");
+    } else {
+      download("spell-checked-columns.csv", excelOutput.map(row=>row.map(csvEscape).join(",")).join("\\r\\n"), "text/csv;charset=utf-8");
+    }
   });
-
-  // ---------------------------------------------------------
-  // Initial setup
-  // ---------------------------------------------------------
-
-  $("wordCount").textContent = "0 words";
-
-  renderCompare();
-  fitEditorColumn();
-  syncPanelHeight();
+  renderHighlight();
 })();
