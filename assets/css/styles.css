@@ -818,7 +818,10 @@ a:focus-visible {
   white-space: nowrap;
 }
 
-/* ---------- SUGGESTIONS PANEL ---------- */
+/* =========================================================
+   SUGGESTIONS PANEL — LINE-ALIGNED LAYOUT
+   Keep every suggestion row aligned with the editor's lines.
+   ========================================================= */
 
 #suggestions.suggestions {
   flex: 1 1 auto;
@@ -841,108 +844,210 @@ a:focus-visible {
   overscroll-behavior: contain;
 }
 
-/* Empty state */
-
-.empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-
-  min-height: 100%;
-  padding: 25px 15px;
-
-  text-align: center;
-}
-
-.empty-aa {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  width: 37px;
-  height: 37px;
-  margin-bottom: 12px;
-
-  border: 1px solid #cceff5;
-  border-radius: 11px;
-
-  background: #f0fcff;
-  color: #009ab8;
-
-  font-size: 16px;
-  font-weight: 800;
-}
-
-.empty b {
-  color: #35485e;
-  font-size: 11px;
-}
-
-.empty p {
-  max-width: 260px;
-  margin: 5px 0 0;
-
-  color: var(--text-muted);
-  font-size: 10px;
-}
-
-/* Suggestion list containers */
+/* Container for all corresponding text lines */
 
 .aligned-suggestions {
   width: 100%;
   min-width: 0;
+  margin: 0;
+  padding: 0;
 }
 
-/* Each suggestion row */
+/*
+  The editor uses:
+  font-size: 12px
+  line-height: 1.9
+
+  Therefore, each editor line is approximately 22.8px high.
+  Use the same line height in the Suggestions panel.
+*/
 
 .suggestion-line {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
 
-  min-height: 36px;
-  padding: 6px 10px;
+  width: 100%;
+  height: 22.8px;
+  min-height: 22.8px;
+  max-height: 22.8px;
+
+  margin: 0;
+  padding: 0 10px;
+
+  box-sizing: border-box;
+
+  overflow: hidden;
 
   border-bottom: 1px solid #edf1f5;
 
-  box-sizing: border-box;
+  background: #ffffff;
 }
 
-.suggestion-line:last-child {
-  border-bottom: 0;
-}
+/* Blank lines retain exactly the same height */
 
 .suggestion-line.empty-line {
-  min-height: 36px;
+  height: 22.8px;
+  min-height: 22.8px;
+  max-height: 22.8px;
+
+  padding: 0;
 }
 
-/* Individual misspelling and its actions */
+/* Keep all issues for one original line together */
 
-.inline-issue {
+.suggestion-line-content {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
 
+  flex: 1 1 auto;
+
+  width: 100%;
   min-width: 0;
-  max-width: 100%;
+  height: 100%;
+
+  gap: 12px;
+
+  overflow-x: auto;
+  overflow-y: hidden;
+
+  white-space: nowrap;
+
+  scrollbar-width: none;
 }
 
+.suggestion-line-content::-webkit-scrollbar {
+  display: none;
+}
+
+/* Individual spelling issue */
+
+.inline-issue {
+  display: inline-flex;
+  align-items: center;
+
+  flex: 0 0 auto;
+
+  height: 100%;
+  min-width: 0;
+
+  gap: 6px;
+
+  white-space: nowrap;
+}
+
+/* Misspelled word */
+
 .bad-word {
-  max-width: 100%;
-  margin-right: 3px;
+  flex: 0 0 auto;
+
+  margin: 0 3px 0 0;
 
   color: var(--danger);
 
   font-size: 10px;
-  font-weight: 650;
+  font-weight: 700;
 
-  overflow-wrap: anywhere;
-  word-break: break-word;
+  white-space: nowrap;
 }
 
+/* Suggested replacements */
+
+.suggestion-list {
+  display: inline-flex;
+  align-items: center;
+
+  flex: 0 0 auto;
+
+  gap: 4px;
+
+  white-space: nowrap;
+}
+
+/* Keep suggestion buttons compact */
+
+.suggestion-option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  flex: 0 0 auto;
+
+  min-height: 19px;
+  max-height: 20px;
+
+  padding: 1px 7px;
+
+  border: 1px solid #cceff5;
+  border-radius: 5px;
+
+  background: #f0fcff;
+  color: #007f99;
+
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+
+  line-height: 1.2;
+
+  white-space: nowrap;
+
+  cursor: pointer;
+}
+
+.suggestion-option:hover {
+  border-color: #00a6c7;
+  background: #e0f9ff;
+}
+
+/* Ignore and Add to dictionary actions */
+
+.inline-actions {
+  display: inline-flex;
+  align-items: center;
+
+  flex: 0 0 auto;
+
+  gap: 7px;
+
+  white-space: nowrap;
+}
+
+.mini-link {
+  display: inline-flex;
+  align-items: center;
+
+  flex: 0 0 auto;
+
+  margin: 0;
+  padding: 2px 0;
+
+  border: 0;
+
+  background: transparent;
+  color: var(--text-muted);
+
+  font: inherit;
+  font-size: 10px;
+  line-height: 1.2;
+
+  white-space: nowrap;
+
+  cursor: pointer;
+}
+
+.mini-link:hover {
+  color: #009ab8;
+  text-decoration: underline;
+}
+
+/* Responsive layout */
+
+@media (max-width: 760px) {
+  .suggestion-line {
+    padding-right: 8px;
+    padding-left: 8px;
+  }
+}
 /* Suggestion buttons and action buttons */
 
 .suggestion-list,
