@@ -16,3 +16,77 @@
 .aligned-suggestions{min-width:0}
 .suggestion-line{min-height:24.7px;height:auto}
 @media(max-width:760px){.workspace{grid-template-columns:minmax(0,1fr);gap:10px}.suggestions{height:235px;max-height:235px}.editor-area{height:235px}}
+
+
+/* Scroll/resize fix: resize the container, not the textarea inside it. */
+.editor-area {
+  height: 270px;
+  min-height: 180px;
+  max-height: 70vh;
+  resize: vertical;
+  overflow: hidden;
+}
+.editor-area textarea {
+  resize: none;
+  min-height: 0;
+  max-height: none;
+}
+.editor-area #highlight {
+  overflow: hidden;
+}
+.suggestions {
+  scrollbar-width: none;
+}
+.suggestions::-webkit-scrollbar {
+  display: none;
+}
+@media (max-width: 760px) {
+  .editor-area {
+    height: 235px;
+    min-height: 180px;
+    max-height: 65vh;
+  }
+}
+
+
+/* Shared creator header */
+.creator-bar {
+  min-height: 48px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 30px;
+  background: #111e27;
+  color: #f5fbff;
+  border-bottom: 1px solid rgba(0, 212, 255, 0.22);
+}
+.creator-brand {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: #00d4ff;
+}
+.creator-credit {
+  font-size: 12px;
+  font-weight: 500;
+  color: #d9e4eb;
+  text-align: right;
+}
+.creator-dot {
+  color: #00d4ff;
+  padding: 0 4px;
+}
+@media (max-width: 640px) {
+  .creator-bar {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 16px;
+  }
+  .creator-credit {
+    text-align: left;
+    font-size: 11px;
+  }
+}
