@@ -455,7 +455,6 @@ button:disabled {
 .inline-suggestions { display:none !important; }
 @media (max-width:760px) { .editor-wrap { height:300px !important; } }
 
-.suggestion-popup{display:none!important}
 
 
 /* FINAL OVERRIDES: contenteditable editor must render its own text visibly. */
@@ -516,7 +515,6 @@ button:disabled {
   -webkit-text-fill-color: #007f98 !important;
 }
 #highlight { display: none !important; }
-.suggestion-popup { display: none !important; }
 @media (max-width:760px) {
   .editor-wrap { height: auto !important; min-height: 300px !important; }
   #editor.rich-editor { min-height: 300px !important; }
@@ -786,3 +784,89 @@ button:disabled {
 /* v5: keep corrected workbook export visible in the Excel action row */
 #downloadExcelBtn{display:inline-flex!important;visibility:visible!important;}
 #downloadExcelBtn[hidden]{display:inline-flex!important;}
+
+/* Spell-check progress indicator */
+#checkBtn.is-checking { cursor: progress !important; opacity: .9; }
+#checkBtn.is-checking::before {
+  content: "";
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-right: 8px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  vertical-align: -2px;
+  animation: spellcheck-spin .7s linear infinite;
+}
+@keyframes spellcheck-spin { to { transform: rotate(360deg); } }
+
+/* Manual-check workflow: hide live-check toggle to prevent editor re-render while typing. */
+#editor.rich-editor { white-space: pre-wrap !important; overflow-wrap: anywhere !important; }
+
+
+/* Option 1: suggestions are displayed in a floating popup, never inserted into
+   the editable text flow. This prevents words and line breaks from shifting. */
+#editorWrap.editor-wrap { position: relative !important; }
+#suggestionPopup.suggestion-popup {
+  position: absolute;
+  z-index: 50;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  max-width: min(420px, calc(100% - 16px));
+  padding: 5px 6px;
+  border: 1px solid #dce8ef;
+  border-radius: 6px;
+  background: #f8fbfd;
+  box-shadow: 0 4px 14px rgba(16,42,67,.14);
+  white-space: normal;
+}
+#suggestionPopup[hidden] { display: none !important; }
+#suggestionPopup .suggestion-choice,
+#suggestionPopup .inline-action {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 3px 8px;
+  border: 1px solid #8eddec;
+  border-radius: 5px;
+  background: #dff8fd;
+  color: #006f87;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background .12s ease, border-color .12s ease, color .12s ease;
+}
+#suggestionPopup .suggestion-choice:hover,
+#suggestionPopup .inline-action:hover {
+  background: #00b8d9;
+  border-color: #00a9c8;
+  color: #fff;
+}
+
+/* Actions are text links, visually distinct from suggestion chips. */
+#suggestionPopup .popup-action {
+  display: inline;
+  min-height: 0;
+  margin: 0 2px 0 5px;
+  padding: 2px 1px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: none;
+}
+#suggestionPopup .popup-ignore { color: #b45309; }
+#suggestionPopup .popup-add-dictionary { color: #087f5b; }
+#suggestionPopup .popup-action:hover {
+  background: transparent;
+  filter: none;
+  text-decoration: underline;
+}
+#suggestionPopup[hidden] { display:none !important; visibility:hidden !important; pointer-events:none !important; }
