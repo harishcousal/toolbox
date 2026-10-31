@@ -5,8 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Toolbox | Spell Checker</title>
   <link rel="stylesheet" href="assets/css/styles.css">
-  <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script defer src="assets/js/dictionary.js"></script>
+    <script defer src="assets/js/dictionary.js"></script>
   <script defer src="assets/js/app.js"></script>
 </head>
 <body>
@@ -42,7 +41,7 @@
       <section class="intro">
         <div><h2>Check spelling, word by word.</h2>
           <p>Spelling only. No grammar or punctuation correction.</p></div>
-        <span class="local-badge"><i></i> Local processing</span>
+
       </section>
 
       <section class="toolbar">
@@ -67,8 +66,7 @@
 
         <div class="editor-instructions">Paste or type below. Click an underlined word to view suggestions.</div>
         <div class="editor-wrap" id="editorWrap">
-          <div id="highlight" aria-hidden="true"></div>
-          <textarea id="editor" spellcheck="false" autocapitalize="off" placeholder="Paste or type your text here..."></textarea>
+          <div id="editor" class="text-editor" contenteditable="true" role="textbox" aria-multiline="true" spellcheck="false" data-placeholder="Paste or type your text here..."></div>
           <div id="suggestionPopup" class="suggestion-popup" hidden></div>
         </div>
 
