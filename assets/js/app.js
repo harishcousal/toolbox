@@ -385,92 +385,102 @@
   }
 
   function renderSuggestions() {
-    const text = editor.value;
-    const lines = text.split("\n");
+  const text = editor.value;
+  const lines = text.split("\n");
 
-    if (!issues.length) {
-      suggestions.innerHTML = `
-        <div class="empty">
-          <div class="empty-aa">✓</div>
-          <b>No spelling issues found</b>
-          <p>
-            No likely misspellings were found using the bundled
-            offline dictionary.
-          </p>
+  // Build one suggestion row for every original text line.
+  // Blank lines and lines without spelling issues are preserved.
+  const lineStarts = [];
+  let cursor = 0;
+
+  for (const line of lines) {
+    lineStarts.push(cursor);
+    cursor += line.length + 1;
+  }
+
+  const lineHTML = lines.map((line, index) => {
+    const start = lineStarts[index];
+    const end = start + line.length;
+
+    const lineIssues = issues.filter(issue =>
+      issue.start >= start && issue.start < end
+    );
+
+    // Preserve blank lines and lines without spelling mistakes.
+    if (lineIssues.length === 0) {
+      return `
+        <div class="suggestion-line empty-line"
+             aria-label="${line.length === 0
+               ? "Blank line"
+               : "No spelling issues on this line"}">
         </div>
       `;
-      return;
     }
 
-    const lineStarts = [];
-    let cursor = 0;
+    const issueHTML = lineIssues.map(issue => {
+      const options = issue.suggestions.length
+        ? issue.suggestions.map(word => `
+            <button
+              type="button"
+              class="suggestion-option"
+              data-action="replace"
+              data-start="${issue.start}"
+              data-end="${issue.end}"
+              data-word="${escapeHTML(word)}"
+              title="Replace ${escapeHTML(issue.word)} with ${escapeHTML(word)}"
+            >${escapeHTML(word)}</button>
+          `).join("")
+        : `<span class="subtle">No suggestions</span>`;
 
-    for (const line of lines) {
-      lineStarts.push(cursor);
-      cursor += line.length + 1;
-    }
+      return `
+        <span class="inline-issue">
 
-    const lineHTML = lines.map((line, index) => {
-      const start = lineStarts[index];
-      const end = start + line.length;
+          <b class="bad-word">${escapeHTML(issue.word)}</b>
 
-      const lineIssues = issues.filter(issue =>
-        issue.start >= start && issue.start < end
-      );
-
-      if (!lineIssues.length) {
-        return `
-          <div class="suggestion-line empty-line"
-               aria-hidden="true"></div>
-        `;
-      }
-
-      const issueHTML = lineIssues.map(issue => {
-        const options = issue.suggestions.length
-          ? issue.suggestions.map(word => `
-              <button
-                class="suggestion-option"
-                data-action="replace"
-                data-start="${issue.start}"
-                data-end="${issue.end}"
-                data-word="${escapeHTML(word)}"
-                title="Replace ${escapeHTML(issue.word)} with ${escapeHTML(word)}"
-              >${escapeHTML(word)}</button>
-            `).join("")
-          : `<span class="subtle">No suggestions</span>`;
-
-        return `
-          <span class="inline-issue">
-            <b class="bad-word">${escapeHTML(issue.word)}</b>
-
-            <span class="suggestion-list">
-              ${options}
-            </span>
-
-            <span class="inline-actions">
-              <button
-                class="mini-link"
-                data-action="ignore"
-                data-word="${escapeHTML(issue.word)}"
-              >Ignore</button>
-
-              <button
-                class="mini-link"
-                data-action="add"
-                data-word="${escapeHTML(issue.word)}"
-              >Add to dictionary</button>
-            </span>
+          <span class="suggestion-list">
+            ${options}
           </span>
-        `;
-      }).join("");
 
-      return `<div class="suggestion-line">${issueHTML}</div>`;
+          <span class="inline-actions">
+            <button
+              type="button"
+              class="mini-link"
+              data-action="ignore"
+              data-word="${escapeHTML(issue.word)}"
+            >Ignore</button>
+
+            <button
+              type="button"
+              class="mini-link"
+              data-action="add"
+              data-word="${escapeHTML(issue.word)}"
+            >Add to dictionary</button>
+          </span>
+
+        </span>
+      `;
     }).join("");
 
-    suggestions.innerHTML = `
-      <div class="aligned-suggestions">${lineHTML}</div>
+    return `
+      <div class="suggestion-line">
+        <div class="suggestion-line-content">
+          ${issueHTML}
+        </div>
+      </div>
     `;
-  }
+  }).join("");
+
+  suggestions.innerHTML = `
+    <div class="aligned-suggestions">
+      ${lineHTML}
+    </div>
+  `;
+
+  // Keep the suggestion panel aligned with the editor's scroll position.
+  requestAnimationFrame(() => {
+    suggestions.scrollTop = editor.scrollTop;
+  });
+}
 
   // ---------------------------------------------------------
   // Before and after preview
