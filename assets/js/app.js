@@ -6,7 +6,7 @@ try{personal=new Set(JSON.parse(localStorage.getItem("toolboxSpellPersonalDictio
 const misspellings={calbe:["cable","cables"],taxt:["text","tax"],teaxt:["text"],recieve:["receive","received"],receieve:["receive","received"],eletrical:["electrical"],connetor:["connector"],dimensoin:["dimension","dimensions"],stainles:["stainless"],bracet:["bracket"],maintenence:["maintenance"],maintanence:["maintenance"],presssure:["pressure"],seperate:["separate"],definately:["definitely"],enviroment:["environment"],compatable:["compatible"],lenght:["length"],widht:["width"],thikness:["thickness"],transmiter:["transmitter"],assembely:["assembly"],centifugal:["centrifugal"],housng:["housing"],waterpmp:["waterpump"]};
 const validTech=new Set("filter unit fluid pressure equipment name hydraulic control system opto coupler phoenix contact type crossbar stainless steel bracket width thickness length range bar connector electrical pump assembly centrifugal bearing housing drawing number cable waterpump maintenance transmitter voltage current mm dc ac dek pn".split(/\s+/));
 // Read only the user's actual editor text. Inline suggestion controls are UI,
- // not document content; excluding them prevents button labels entering the text.
+// not document content; excluding them prevents button labels entering the text.
 const text=()=>{
   const clone=editor.cloneNode(true);
   clone.querySelectorAll(".inline-suggestions").forEach(n=>n.remove());
@@ -172,21 +172,52 @@ function showSuggestionPopup(err, info){
   popup.style.top=Math.min(er.bottom-wr.top+3,wrap.clientHeight-38)+"px";
   popup.hidden=false;
 }
+const phraseAlternatives = [
+  { pattern: /\bopto\s+coupler\b/gi, suggestion: "optocoupler" },
+  { pattern: /\bnon\s+drive\b/gi, suggestion: "non-drive" },
+  { pattern: /\bnon\s+return\b/gi, suggestion: "non-return" },
+  { pattern: /\bnon\s+contact\b/gi, suggestion: "non-contact" },
+  { pattern: /\bnon\s+conductive\b/gi, suggestion: "non-conductive" },
+  { pattern: /\bnon\s+metallic\b/gi, suggestion: "non-metallic" },
+  { pattern: /\bnon\s+ferrous\b/gi, suggestion: "non-ferrous" },
+  { pattern: /\bnon\s+slip\b/gi, suggestion: "non-slip" },
+  { pattern: /\bnon\s+returnable\b/gi, suggestion: "non-returnable" }
+];
 function render(keepCaret=false){
-  const t=text(),caret=keepCaret?caretOffset():null,found=[];
+  const t=text(),caret=keepCaret?caretOffset():null,found=[],alternatives=[];
+  for(const rule of phraseAlternatives){
+    rule.pattern.lastIndex=0; let match;
+    while((match=rule.pattern.exec(t))){
+      alternatives.push({w:match[0],s:match.index,e:match.index+match[0].length,o:[caseLike(match[0],rule.suggestion)], alternative:true});
+      if(!match[0].length)rule.pattern.lastIndex++;
+    }
+  }
   const re=/[\p{L}\p{M}]+(?:['’][\p{L}\p{M}]+)*/gu;
   let m;
-  while((m=re.exec(t))){const o=opts(m[0]);if(o.length)found.push({w:m[0],s:m.index,e:m.index+m[0].length,o});}
+  while((m=re.exec(t))){
+    const covered=alternatives.some(a=>m.index<a.e && m.index+m[0].length>a.s);
+    if(!covered){const o=opts(m[0]);if(o.length)found.push({w:m[0],s:m.index,e:m.index+m[0].length,o});}
+  }
+  const items=[...found,...alternatives].sort((a,b)=>a.s-b.s);
   closeSuggestionPopup();
   const frag=document.createDocumentFragment();let p=0;
-  for(const it of found){
+  for(const it of items){
     appendTextWithBreaks(frag,t.slice(p,it.s));
     const err=document.createElement("span");
-    err.className="spell-error";
+    err.className=it.alternative?"spell-alternative":"spell-error";
     err.textContent=it.w;
+    if(it.alternative){
+      err.style.textDecoration="underline dotted #1683a5";
+      err.style.textDecorationColor="#1683a5";
+      err.style.textUnderlineOffset="3px";
+      err.style.background="rgba(0,180,210,.08)";
+      err.style.borderRadius="2px";
+    }
     err.dataset.start=String(it.s);err.dataset.end=String(it.e);
     err.dataset.word=it.w;
-    err.title="Click to view spelling suggestions";
+    err.dataset.alternative=it.alternative?"1":"";
+    err.dataset.options=JSON.stringify(it.o);
+    err.title=it.alternative?"Optional spelling or compound-word suggestion":"Click to view spelling suggestions";
     frag.append(err);p=it.e;
   }
   appendTextWithBreaks(frag,t.slice(p));
@@ -198,17 +229,19 @@ function render(keepCaret=false){
   if(caret!==null)setCaret(caret);
 }
 editor.addEventListener("click",e=>{
-  const err=e.target.closest(".spell-error");
+  const err=e.target.closest(".spell-error, .spell-alternative");
   if(!err){if(!e.target.closest("#suggestionPopup"))closeSuggestionPopup();return;}
   const w=err.dataset.word, s=Number(err.dataset.start), end=Number(err.dataset.end);
-  showSuggestionPopup(err,{w,s,e:end,o:opts(w)});
+  let options=opts(w);
+  try{if(err.dataset.options)options=JSON.parse(err.dataset.options)}catch{}
+  showSuggestionPopup(err,{w,s,e:end,o:options});
 });
 document.addEventListener("click",e=>{
-  if(!e.target.closest(".spell-error")&&!e.target.closest("#suggestionPopup")) closeSuggestionPopup();
+  if(!e.target.closest(".spell-error, .spell-alternative")&&!e.target.closest("#suggestionPopup")) closeSuggestionPopup();
 });
 // A click or focus change elsewhere in the editor must also dismiss the popup.
 $("editor")?.addEventListener("click",e=>{
-  if(!e.target.closest(".spell-error")) closeSuggestionPopup();
+  if(!e.target.closest(".spell-error, .spell-alternative")) closeSuggestionPopup();
 });
 $("editor")?.addEventListener("keydown",e=>{
   if(e.key==="Escape") closeSuggestionPopup();
