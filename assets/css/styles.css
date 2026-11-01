@@ -884,3 +884,27 @@ button:disabled {
   background: #eaf8ff;
   border-radius: 2px;
 }
+/* Actual spelling errors — red wavy underline */
+.rich-editor .misspelled {
+  color: #d92d3a !important;
+  background: rgba(217, 45, 58, 0.07);
+  text-decoration-line: underline;
+  text-decoration-style: wavy;
+  text-decoration-color: #d92d3a;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.rich-editor .misspelled:hover {
+  background: rgba(217, 45, 58, 0.14);
+  border-radius: 2px;
+}
+
+/* Optional alternatives — blue dotted underline */
+.rich-editor .optional-alternative {
+  color: #087eaa;
+  text-decoration: underline dotted #087eaa;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
