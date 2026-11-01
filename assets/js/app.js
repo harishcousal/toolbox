@@ -188,6 +188,8 @@
     independantly: ["independently"],
     immediatly: ["immediately"],
     imediately: ["immediately"],
+    normaly: ["normally"],
+    corectly: ["correctly"],
     occuring: ["occurring"],
     privelege: ["privilege"],
     publically: ["publicly"],
@@ -769,6 +771,27 @@
       }
     }
 
+    // Detect consecutive repeated words separately from spelling errors.
+    // Mark only the second occurrence so the user can remove the duplicate.
+    const repeatedRegex = /\b([\p{L}\p{M}]+)[ \t]+\1\b/giu;
+    let repeatedMatch;
+
+    while ((repeatedMatch = repeatedRegex.exec(text)) !== null) {
+      const repeatedWord = repeatedMatch[1];
+      const secondStart = repeatedMatch.index + repeatedWord.length +
+        (repeatedMatch[0].slice(repeatedWord.length).match(/^\s+/)?.[0].length || 0);
+      const secondEnd = secondStart + repeatedWord.length;
+
+      results.push({
+        word: repeatedWord,
+        start: secondStart,
+        end: secondEnd,
+        suggestions: [""],
+        suggestionLabels: ["Remove duplicate"],
+        type: "repeated"
+      });
+    }
+
     return results.sort((a, b) => a.start - b.start);
   }
   /*
@@ -841,7 +864,7 @@
     const caret = getCaretPosition();
 
     const spellingIssues = issues.filter(
-      item => item.type === "spelling"
+      item => item.type === "spelling" || item.type === "repeated"
     );
 
     const alternatives = findPhraseAlternatives(text);
@@ -870,7 +893,9 @@
       const title =
         item.type === "alternative"
           ? "Click to view alternative forms"
-          : "Click to view spelling suggestions";
+          : item.type === "repeated"
+            ? "Click to remove the repeated word"
+            : "Click to view spelling suggestions";
 
       html +=
         `<span class="${className}" ` +
@@ -900,7 +925,7 @@
       text.match(/[\p{L}\p{M}]+(?:['’][\p{L}\p{M}]+)*/gu) || [];
 
     const issueCount = issues.filter(
-      item => item.type === "spelling"
+      item => item.type === "spelling" || item.type === "repeated"
     ).length;
 
     if ($("wordCount")) {
@@ -1081,7 +1106,9 @@ function renderPreviews() {
     title.textContent =
       issue.type === "alternative"
         ? `${issue.word} — alternatives`
-        : `${issue.word} — spelling suggestions`;
+        : issue.type === "repeated"
+          ? `${issue.word} — repeated word`
+          : `${issue.word} — spelling suggestions`;
 
     const close = document.createElement("button");
     close.type = "button";
@@ -1105,7 +1132,8 @@ function renderPreviews() {
       const button = document.createElement("button");
       button.type = "button";
       button.className = "suggestion-chip";
-      button.textContent = preserveCase(issue.word, suggestion);
+      button.textContent = issue.suggestionLabels?.[issue.suggestions.indexOf(suggestion)] ||
+        (suggestion ? preserveCase(issue.word, suggestion) : "Remove duplicate");
 
       button.addEventListener("click", event => {
         event.stopPropagation();
@@ -1183,8 +1211,13 @@ function renderPreviews() {
       replacement
     );
 
+    let prefix = text.slice(0, issue.start);
+    if (issue.type === "repeated" && replacementText === "") {
+      prefix = prefix.replace(/[ \t]+$/, "");
+    }
+
     const updated =
-      text.slice(0, issue.start) +
+      prefix +
       replacementText +
       text.slice(issue.end);
 
@@ -1237,7 +1270,7 @@ function renderPreviews() {
       issue = issues.find(
         item =>
           item.start === start &&
-          item.type === "spelling"
+          (item.type === "spelling" || item.type === "repeated")
       );
     }
 
