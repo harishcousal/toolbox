@@ -24,6 +24,7 @@
   let originalText = "";
   let correctedText = "";
   let activeIssue = null;
+  const appliedCorrections = [];
 
   const ignoredWords = new Set();
   const personalDictionary = new Set();
@@ -841,16 +842,54 @@ function renderPreviewMarkup(text) {
 /*
  * Render before/after previews.
  */
+function renderCorrectedPreviewMarkup(text) {
+  if (!text) return "";
+
+  const markers = [
+    ...findIssues(text).map(issue => ({
+      start: issue.start, end: issue.end, type: "misspelled"
+    })),
+    ...findPhraseAlternatives(text).map(issue => ({
+      start: issue.start, end: issue.end, type: "alternative"
+    })),
+    ...appliedCorrections
+      .filter(item => item.start >= 0 && item.end <= text.length)
+      .map(item => ({
+        start: item.start, end: item.end, type: "corrected"
+      }))
+  ].sort((a, b) => a.start - b.start || (b.end - b.start) - (a.end - a.start));
+
+  let html = "";
+  let position = 0;
+
+  markers.forEach(marker => {
+    if (marker.start < position) return;
+    html += escapeHTML(text.slice(position, marker.start));
+
+    const className = marker.type === "corrected"
+      ? "preview-corrected"
+      : marker.type === "alternative"
+        ? "preview-alternative"
+        : "preview-misspelled";
+
+    html += `<span class="${className}">${escapeHTML(
+      text.slice(marker.start, marker.end)
+    )}</span>`;
+    position = marker.end;
+  });
+
+  html += escapeHTML(text.slice(position));
+  return html;
+}
+
+/*
+ * Render before/after previews.
+ */
 function renderPreviews() {
   const text = getText();
 
-  if (!originalText) {
-    originalText = text;
-  }
-
-  if (!correctedText) {
-    correctedText = text;
-  }
+  if (!originalText) originalText = text;
+  if (!correctedText) correctedText = text;
 
   if ($("originalPreview")) {
     $("originalPreview").innerHTML = originalText
@@ -860,7 +899,7 @@ function renderPreviews() {
 
   if ($("correctedPreview")) {
     $("correctedPreview").innerHTML = correctedText
-      ? renderPreviewMarkup(correctedText)
+      ? renderCorrectedPreviewMarkup(correctedText)
       : "Accepted corrections will appear here.";
   }
 
@@ -1024,6 +1063,20 @@ function renderPreviews() {
       replacementText +
       text.slice(issue.end);
 
+    const delta = replacementText.length - (issue.end - issue.start);
+    appliedCorrections.forEach(item => {
+      if (item.start >= issue.end) {
+        item.start += delta;
+        item.end += delta;
+      } else if (item.end > issue.start) {
+        item.end = item.start;
+      }
+    });
+    appliedCorrections.push({
+      start: issue.start,
+      end: issue.start + replacementText.length
+    });
+
     editor.innerText = updated;
     correctedText = updated;
 
@@ -1088,6 +1141,7 @@ function renderPreviews() {
    * Editor input.
    */
   editor.addEventListener("input", () => {
+    appliedCorrections.length = 0;
     correctedText = getText();
 
     if ($("autoCheck")?.checked) {
@@ -1103,6 +1157,7 @@ function renderPreviews() {
   $("checkBtn")?.addEventListener("click", () => {
     originalText = getText();
     correctedText = originalText;
+    appliedCorrections.length = 0;
     runCheck();
   });
 
@@ -1115,6 +1170,7 @@ function renderPreviews() {
     editor.innerText = "";
     originalText = "";
     correctedText = "";
+    appliedCorrections.length = 0;
 
     ignoredWords.clear();
 
