@@ -187,6 +187,7 @@
     independant: ["independent"],
     independantly: ["independently"],
     immediatly: ["immediately"],
+    imediately: ["immediately"],
     occuring: ["occurring"],
     privelege: ["privilege"],
     publically: ["publicly"],
@@ -270,6 +271,7 @@
     ["counsellor", "counselor"],
     ["jewellery", "jewelry"],
     ["grey", "gray"],
+    ["aluminium", "aluminum"],
     ["mould", "mold"],
     ["moulds", "molds"],
     ["moulding", "molding"],
@@ -292,12 +294,28 @@
    */
   const phraseAlternatives = [
     {
-      variants: ["opto coupler", "optocoupler"],
+      variants: ["opto coupler", "opto-coupler", "optocoupler"],
       preferred: "optocoupler"
     },
     {
       variants: ["optoelectronic", "opto electronic", "opto-electronic"],
       preferred: "optoelectronic"
+    },
+    {
+      variants: ["thermo couple", "thermo-couple", "thermocouple"],
+      preferred: "thermocouple"
+    },
+    {
+      variants: ["micro controller", "micro-controller", "microcontroller"],
+      preferred: "microcontroller"
+    },
+    {
+      variants: ["electro magnetic", "electro-magnetic", "electromagnetic"],
+      preferred: "electromagnetic"
+    },
+    {
+      variants: ["photo electric", "photo-electric", "photoelectric"],
+      preferred: "photoelectric"
     },
     {
       variants: ["customwordxyz", "custom word xyz"],
@@ -367,6 +385,8 @@
   const technicalWords = new Set(
     (
       "opto coupler optocoupler optoelectronic customwordxyz tonevault " +
+      "thermo couple thermocouple micro controller microcontroller " +
+      "electro magnetic electromagnetic photo electric photoelectric " +
       "non drive nondrive " +
       "co operate cooperate waterpump water pump " +
       "filter unit fluid pressure equipment hydraulic " +
@@ -538,6 +558,23 @@
   }
 
   /*
+   * Common valid words that may be absent from the compact local
+   * dictionary. Do not generate misleading edit-distance suggestions
+   * for these correctly spelled words.
+   */
+  const acceptedWords = new Set([
+    "after",
+    "acceptable",
+    "immediately",
+    "normally",
+    "prepared",
+    "properly",
+    "replaced",
+    "review",
+    "successfully"
+  ]);
+
+  /*
    * Return spelling corrections for a single word.
    */
   function getSuggestions(word) {
@@ -546,7 +583,8 @@
     if (
       personalDictionary.has(lower) ||
       ignoredWords.has(lower) ||
-      technicalWords.has(lower)
+      technicalWords.has(lower) ||
+      acceptedWords.has(lower)
     ) {
       return [];
     }
@@ -686,6 +724,19 @@
         });
       }
     }
+
+    /*
+     * Protect recognised multi-word technical expressions from being
+     * split into unrelated individual spelling errors.
+     */
+    findPhraseAlternatives(text).forEach(alternative => {
+      if (/[\\s-]/.test(alternative.word)) {
+        compoundRanges.push({
+          start: alternative.start,
+          end: alternative.end
+        });
+      }
+    });
 
     /*
      * Check individual words, excluding words already covered by a
