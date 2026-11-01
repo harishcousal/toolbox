@@ -296,6 +296,18 @@
       preferred: "optocoupler"
     },
     {
+      variants: ["optoelectronic", "opto electronic", "opto-electronic"],
+      preferred: "optoelectronic"
+    },
+    {
+      variants: ["customwordxyz", "custom word xyz"],
+      preferred: "custom word xyz"
+    },
+    {
+      variants: ["ToneVault", "Tone-Vault"],
+      preferred: "ToneVault"
+    },
+    {
       variants: ["non drive", "non-drive", "nondrive"],
       preferred: "non-drive"
     },
@@ -354,7 +366,8 @@
    */
   const technicalWords = new Set(
     (
-      "opto coupler optocoupler non drive nondrive " +
+      "opto coupler optocoupler optoelectronic customwordxyz tonevault " +
+      "non drive nondrive " +
       "co operate cooperate waterpump water pump " +
       "filter unit fluid pressure equipment hydraulic " +
       "phoenix contact crossbar stainless steel bracket " +
