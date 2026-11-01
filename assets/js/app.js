@@ -771,23 +771,34 @@
       }
     }
 
-    // Detect consecutive repeated words separately from spelling errors.
-    // Mark only the second occurrence so the user can remove the duplicate.
+    // Detect consecutive repeated words and mark the complete pair as
+    // a blue optional-style issue, rather than a red spelling error.
+    // Selecting "Keep one copy" replaces both occurrences with one.
     const repeatedRegex = /\b([\p{L}\p{M}]+)[ \t]+\1\b/giu;
     let repeatedMatch;
 
     while ((repeatedMatch = repeatedRegex.exec(text)) !== null) {
       const repeatedWord = repeatedMatch[1];
-      const secondStart = repeatedMatch.index + repeatedWord.length +
-        (repeatedMatch[0].slice(repeatedWord.length).match(/^\s+/)?.[0].length || 0);
-      const secondEnd = secondStart + repeatedWord.length;
+      const phraseStart = repeatedMatch.index;
+      const phraseEnd = phraseStart + repeatedMatch[0].length;
+
+      // Suppress individual spelling flags within this repeated pair.
+      for (let i = results.length - 1; i >= 0; i--) {
+        if (
+          results[i].type === "spelling" &&
+          results[i].start < phraseEnd &&
+          results[i].end > phraseStart
+        ) {
+          results.splice(i, 1);
+        }
+      }
 
       results.push({
         word: repeatedWord,
-        start: secondStart,
-        end: secondEnd,
-        suggestions: [""],
-        suggestionLabels: ["Remove duplicate"],
+        start: phraseStart,
+        end: phraseEnd,
+        suggestions: [repeatedWord],
+        suggestionLabels: ["Keep one copy"],
         type: "repeated"
       });
     }
@@ -886,7 +897,7 @@
       html += escapeHTML(text.slice(position, item.start));
 
       const className =
-        item.type === "alternative"
+        item.type === "alternative" || item.type === "repeated"
           ? "optional-alternative"
           : "misspelled";
 
@@ -894,7 +905,7 @@
         item.type === "alternative"
           ? "Click to view alternative forms"
           : item.type === "repeated"
-            ? "Click to remove the repeated word"
+            ? "Click to keep one copy of the repeated word"
             : "Click to view spelling suggestions";
 
       html +=
