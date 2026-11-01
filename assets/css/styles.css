@@ -953,3 +953,89 @@ button:disabled {
   text-decoration-thickness: 1.5px;
   text-underline-offset: 3px;
 }
+
+
+/* Final suggestion popup layout: content-sized, no internal scrollbar. */
+#suggestionPopup.suggestion-popup {
+  display: block !important;
+  box-sizing: border-box !important;
+  width: max-content !important;
+  min-width: 220px !important;
+  max-width: min(520px, calc(100% - 16px)) !important;
+  max-height: none !important;
+  overflow: visible !important;
+  padding: 9px 10px !important;
+  background: #ffffff !important;
+  border: 1px solid #cfdce6 !important;
+  border-radius: 9px !important;
+  white-space: normal !important;
+}
+
+#suggestionPopup .suggestion-popup-heading {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 16px !important;
+  width: 100% !important;
+  margin: 0 0 8px !important;
+}
+
+#suggestionPopup .suggestion-popup-title {
+  min-width: 0;
+  font-weight: 700;
+  color: #183247;
+}
+
+#suggestionPopup .suggestion-popup-close {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 5px !important;
+  background: #eef3f6 !important;
+  color: #536b7b !important;
+  font-size: 17px !important;
+  line-height: 1 !important;
+  cursor: pointer;
+}
+
+#suggestionPopup .suggestion-popup-close:hover {
+  background: #dfe9ee !important;
+  color: #183247 !important;
+}
+
+#suggestionPopup .suggestion-popup-suggestions {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  gap: 5px !important;
+  width: 100% !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+#suggestionPopup .suggestion-chip {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+#suggestionPopup .suggestion-popup-actions {
+  display: flex !important;
+  align-items: center !important;
+  gap: 18px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  margin: 9px 0 0 !important;
+  padding: 8px 2px 1px !important;
+  border-top: 1px solid #e2eaf0 !important;
+}
+
+#suggestionPopup .suggestion-action {
+  margin: 0 !important;
+  padding: 3px 0 !important;
+  white-space: nowrap;
+}
