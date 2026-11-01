@@ -947,19 +947,36 @@ function renderPreviews() {
     popup.replaceChildren();
     popup.hidden = false;
 
-    const title = document.createElement("div");
-    title.className = "suggestion-popup-heading";
+    const heading = document.createElement("div");
+    heading.className = "suggestion-popup-heading";
 
+    const title = document.createElement("span");
+    title.className = "suggestion-popup-title";
     title.textContent =
       issue.type === "alternative"
         ? `${issue.word} — alternatives`
         : `${issue.word} — spelling suggestions`;
 
-    popup.append(title);
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "suggestion-popup-close";
+    close.textContent = "×";
+    close.setAttribute("aria-label", "Close suggestions");
+    close.title = "Close";
+
+    close.addEventListener("click", event => {
+      event.stopPropagation();
+      closePopup();
+    });
+
+    heading.append(title, close);
+    popup.append(heading);
+
+    const suggestions = document.createElement("div");
+    suggestions.className = "suggestion-popup-suggestions";
 
     issue.suggestions.forEach(suggestion => {
       const button = document.createElement("button");
-
       button.type = "button";
       button.className = "suggestion-chip";
       button.textContent = preserveCase(issue.word, suggestion);
@@ -969,8 +986,10 @@ function renderPreviews() {
         replaceIssue(issue, suggestion);
       });
 
-      popup.append(button);
+      suggestions.append(button);
     });
+
+    popup.append(suggestions);
 
     if (issue.type === "spelling") {
       const actions = document.createElement("div");
@@ -980,7 +999,6 @@ function renderPreviews() {
       ignore.type = "button";
       ignore.className = "suggestion-action";
       ignore.textContent = "Ignore";
-
       ignore.addEventListener("click", event => {
         event.stopPropagation();
         ignoredWords.add(issue.word.toLowerCase());
@@ -991,10 +1009,8 @@ function renderPreviews() {
       add.type = "button";
       add.className = "suggestion-action";
       add.textContent = "Add to dictionary";
-
       add.addEventListener("click", event => {
         event.stopPropagation();
-
         personalDictionary.add(issue.word.toLowerCase());
 
         try {
@@ -1013,35 +1029,18 @@ function renderPreviews() {
       popup.append(actions);
     }
 
-    const close = document.createElement("button");
-    close.type = "button";
-    close.className = "suggestion-action";
-    close.textContent = "Close";
-
-    close.addEventListener("click", event => {
-      event.stopPropagation();
-      closePopup();
-    });
-
-    popup.append(close);
-
-    /*
-     * Position popup relative to editor wrapper.
-     */
+    // Keep the popup inside the editor while allowing its width to follow
+    // the suggestion chips instead of forcing a narrow, scrollable panel.
     if (anchor && $("editorWrap")) {
       const rect = anchor.getBoundingClientRect();
       const wrap = $("editorWrap").getBoundingClientRect();
 
       popup.style.position = "absolute";
-
-      popup.style.left =
-        Math.max(
-          8,
-          Math.min(rect.left - wrap.left, wrap.width - 260)
-        ) + "px";
-
-      popup.style.top =
-        Math.max(8, rect.bottom - wrap.top + 6) + "px";
+      popup.style.left = Math.max(
+        8,
+        Math.min(rect.left - wrap.left, wrap.width - popup.offsetWidth - 8)
+      ) + "px";
+      popup.style.top = Math.max(8, rect.bottom - wrap.top + 6) + "px";
     }
   }
 
