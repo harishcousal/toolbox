@@ -513,50 +513,78 @@
   }
 
   /*
-   * Find suggestions in the local dictionary.
+   * Indexed and cached dictionary suggestions.
+   * Build length buckets once instead of scanning the entire dictionary
+   * for every unknown word on every editor update.
    */
-  function dictionarySuggestions(word) {
-    const dictionary = getDictionary();
+  let dictionaryIndexSource = null;
+  let dictionaryIndex = new Map();
+  const suggestionCache = new Map();
 
-    if (!dictionary) return [];
+  function getDictionaryIndex(dictionary) {
+    if (dictionaryIndexSource === dictionary) return dictionaryIndex;
 
-    const lower = word.toLowerCase();
-
-    if (lower.length < 3) return [];
-
-    const maxDistance = lower.length <= 4 ? 1 : 2;
-
-    const candidates = [];
+    dictionaryIndexSource = dictionary;
+    dictionaryIndex = new Map();
 
     for (const candidate of dictionary) {
       if (typeof candidate !== "string") continue;
-
       const item = candidate.toLowerCase();
+      const length = item.length;
 
-      if (item === lower) continue;
-      if (Math.abs(item.length - lower.length) > maxDistance) continue;
+      if (!dictionaryIndex.has(length)) dictionaryIndex.set(length, []);
+      dictionaryIndex.get(length).push(item);
+    }
 
-      const distance = levenshtein(lower, item);
+    suggestionCache.clear();
+    return dictionaryIndex;
+  }
 
-      if (distance <= maxDistance) {
-        candidates.push({
-          word: item,
-          distance
-        });
+  function dictionarySuggestions(word) {
+    const dictionary = getDictionary();
+    if (!dictionary) return [];
+
+    const lower = word.toLowerCase();
+    if (lower.length < 3) return [];
+
+    const cacheKey = `${getLanguage()}:${lower}`;
+    if (suggestionCache.has(cacheKey)) {
+      return suggestionCache.get(cacheKey);
+    }
+
+    const index = getDictionaryIndex(dictionary);
+    const maxDistance = lower.length <= 4 ? 1 : 2;
+    const candidates = [];
+
+    for (
+      let length = Math.max(1, lower.length - maxDistance);
+      length <= lower.length + maxDistance;
+      length++
+    ) {
+      const bucket = index.get(length);
+      if (!bucket) continue;
+
+      for (const item of bucket) {
+        if (item === lower) continue;
+
+        const distance = levenshtein(lower, item);
+        if (distance <= maxDistance) {
+          candidates.push({ word: item, distance });
+        }
       }
     }
 
-    candidates.sort((a, b) => {
-      if (a.distance !== b.distance) {
-        return a.distance - b.distance;
-      }
+    candidates.sort((a, b) =>
+      a.distance - b.distance || a.word.localeCompare(b.word)
+    );
 
-      return a.word.localeCompare(b.word);
-    });
-
-    return [...new Set(
+    const result = [...new Set(
       candidates.slice(0, 6).map(item => item.word)
     )];
+
+    if (suggestionCache.size > 3000) suggestionCache.clear();
+    suggestionCache.set(cacheKey, result);
+    return result;
   }
 
   /*
@@ -622,7 +650,13 @@
    * Find optional technical phrase alternatives.
    * Regional spelling alternatives are deliberately excluded.
    */
+  const phraseResultCache = new Map();
+  const issueResultCache = new Map();
+
   function findPhraseAlternatives(text) {
+    const cacheKey = `${getLanguage()}:` + text;
+    if (phraseResultCache.has(cacheKey)) return phraseResultCache.get(cacheKey);
+
     const results = [];
 
     // Regional compounds are checked for spelling first by findIssues().
@@ -688,6 +722,8 @@
       }
     });
 
+    if (phraseResultCache.size > 150) phraseResultCache.clear();
+    phraseResultCache.set(cacheKey, filtered);
     return filtered;
   }
 
@@ -695,6 +731,9 @@
    * Find actual spelling errors.
    */
   function findIssues(text) {
+    const cacheKey = `${getLanguage()}:` + text;
+    if (issueResultCache.has(cacheKey)) return issueResultCache.get(cacheKey);
+
     const results = [];
     const compoundRanges = [];
 
@@ -803,7 +842,10 @@
       });
     }
 
-    return results.sort((a, b) => a.start - b.start);
+    results.sort((a, b) => a.start - b.start);
+    if (issueResultCache.size > 150) issueResultCache.clear();
+    issueResultCache.set(cacheKey, results);
+    return results;
   }
   /*
    * Read caret position before re-rendering.
@@ -1089,6 +1131,11 @@ function renderPreviews() {
    * Run spelling checks.
    */
   function runCheck() {
+    if (inputCheckTimer) {
+      clearTimeout(inputCheckTimer);
+      inputCheckTimer = null;
+    }
+
     const text = getText();
 
     issues = findIssues(text);
@@ -1309,13 +1356,22 @@ function renderPreviews() {
   /*
    * Editor input.
    */
+  let inputCheckTimer = null;
+
   editor.addEventListener("input", () => {
     appliedCorrections.length = 0;
     originalText = getText();
     correctedText = originalText;
 
+    // Avoid running the full spell-check pipeline for every keystroke.
+    // A short debounce lets paste and fast typing settle before checking.
+    if (inputCheckTimer) clearTimeout(inputCheckTimer);
+
     if ($("autoCheck")?.checked) {
-      runCheck();
+      inputCheckTimer = setTimeout(() => {
+        inputCheckTimer = null;
+        runCheck();
+      }, 220);
     } else {
       updateCounts();
     }
