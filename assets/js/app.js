@@ -800,36 +800,77 @@
   }
 
   /*
-   * Render before/after previews.
-   */
-  function renderPreviews() {
-    const text = getText();
+ * Render spelling markers in preview text.
+ */
+function renderPreviewMarkup(text) {
+  if (!text) return "";
 
-    if (!originalText) {
-      originalText = text;
-    }
+  const previewIssues = [
+    ...findIssues(text),
+    ...findPhraseAlternatives(text)
+  ].sort((a, b) => {
+    if (a.start !== b.start) return a.start - b.start;
+    return (b.end - b.start) - (a.end - a.start);
+  });
 
-    if (!correctedText) {
-      correctedText = text;
-    }
+  let html = "";
+  let position = 0;
 
-    if ($("originalPreview")) {
-      $("originalPreview").textContent =
-        originalText || "Your original text will appear here.";
-    }
+  previewIssues.forEach(issue => {
+    if (issue.start < position) return;
 
-    if ($("correctedPreview")) {
-      $("correctedPreview").textContent =
-        correctedText || "Accepted corrections will appear here.";
-    }
+    html += escapeHTML(text.slice(position, issue.start));
 
-    if ($("changeSummary")) {
-      $("changeSummary").textContent =
-        correctedText !== originalText
-          ? "Corrections applied"
-          : "No corrections applied";
-    }
+    const className =
+      issue.type === "alternative"
+        ? "preview-alternative"
+        : "preview-misspelled";
+
+    html += `<span class="${className}">${escapeHTML(
+      text.slice(issue.start, issue.end)
+    )}</span>`;
+
+    position = issue.end;
+  });
+
+  html += escapeHTML(text.slice(position));
+
+  return html;
+}
+
+/*
+ * Render before/after previews.
+ */
+function renderPreviews() {
+  const text = getText();
+
+  if (!originalText) {
+    originalText = text;
   }
+
+  if (!correctedText) {
+    correctedText = text;
+  }
+
+  if ($("originalPreview")) {
+    $("originalPreview").innerHTML = originalText
+      ? renderPreviewMarkup(originalText)
+      : "Your original text will appear here.";
+  }
+
+  if ($("correctedPreview")) {
+    $("correctedPreview").innerHTML = correctedText
+      ? renderPreviewMarkup(correctedText)
+      : "Accepted corrections will appear here.";
+  }
+
+  if ($("changeSummary")) {
+    $("changeSummary").textContent =
+      correctedText !== originalText
+        ? "Corrections applied"
+        : "No corrections applied";
+  }
+}
 
   /*
    * Close suggestion popup.
