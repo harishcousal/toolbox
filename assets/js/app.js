@@ -203,7 +203,23 @@
     "thier's": ["theirs"],
     alot: ["a lot"],
     infront: ["in front"],
-    aswell: ["as well"]
+    aswell: ["as well"],
+    stl: ["steel"],
+    incorrecty: ["incorrectly"],
+    incorectly: ["incorrectly"],
+    carefuly: ["carefully"],
+    accuratly: ["accurately"],
+    accurateley: ["accurately"],
+    successfullly: ["successfully"],
+    succesfuly: ["successfully"],
+    immediatley: ["immediately"],
+    normalley: ["normally"],
+    usualy: ["usually"],
+    finaly: ["finally"],
+    actualy: ["actually"],
+    realy: ["really"],
+    probaly: ["probably"],
+    obviusly: ["obviously"]
   };
 
   /*
@@ -601,7 +617,20 @@
     "properly",
     "replaced",
     "review",
-    "successfully"
+    "successfully",
+    "incorrectly",
+    "accurately",
+    "carefully",
+    "continuously",
+    "suddenly",
+    "directly",
+    "electrically",
+    "mechanically",
+    "hydraulically",
+    "visually",
+    "particularly",
+    "approximately",
+    "satisfactory"
   ]);
 
   /*
@@ -722,7 +751,7 @@
       }
     });
 
-    if (phraseResultCache.size > 150) phraseResultCache.clear();
+    if (phraseResultCache.size > 20) phraseResultCache.clear();
     phraseResultCache.set(cacheKey, filtered);
     return filtered;
   }
@@ -843,7 +872,7 @@
     }
 
     results.sort((a, b) => a.start - b.start);
-    if (issueResultCache.size > 150) issueResultCache.clear();
+    if (issueResultCache.size > 20) issueResultCache.clear();
     issueResultCache.set(cacheKey, results);
     return results;
   }
@@ -1138,6 +1167,24 @@ function renderPreviews() {
 
     const text = getText();
 
+    // Clearing a large document should not run dictionary, phrase,
+    // preview, or cache work. Reset the UI immediately.
+    if (!text.trim()) {
+      issues = [];
+      issueResultCache.clear();
+      phraseResultCache.clear();
+      suggestionCache.clear();
+      originalText = "";
+      correctedText = "";
+      appliedCorrections.length = 0;
+
+      if (editor.innerHTML !== "") editor.innerHTML = "";
+      closePopup();
+      renderPreviews();
+      updateCounts();
+      return;
+    }
+
     issues = findIssues(text);
 
     renderEditor();
@@ -1362,6 +1409,25 @@ function renderPreviews() {
     appliedCorrections.length = 0;
     originalText = getText();
     correctedText = originalText;
+
+    // Fast path for deleting all content, including large pasted documents.
+    if (!originalText.trim()) {
+      if (inputCheckTimer) {
+        clearTimeout(inputCheckTimer);
+        inputCheckTimer = null;
+      }
+
+      issues = [];
+      issueResultCache.clear();
+      phraseResultCache.clear();
+      suggestionCache.clear();
+      originalText = "";
+      correctedText = "";
+      closePopup();
+      renderPreviews();
+      updateCounts();
+      return;
+    }
 
     // Avoid running the full spell-check pipeline for every keystroke.
     // A short debounce lets paste and fast typing settle before checking.
