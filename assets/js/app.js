@@ -624,7 +624,41 @@
    */
   function findIssues(text) {
     const results = [];
+    const compoundRanges = [];
 
+    /*
+     * Check regional spelling of the complete "non-grey/non-gray"
+     * expression before checking individual words.
+     */
+    const compoundRegex = /\bnon([ -])(grey|gray)\b/giu;
+    let compoundMatch;
+
+    while ((compoundMatch = compoundRegex.exec(text)) !== null) {
+      const word = compoundMatch[0];
+      const separator = compoundMatch[1];
+      const currentVariant = compoundMatch[2].toLowerCase();
+      const preferredVariant = getLanguage() === "en_GB" ? "grey" : "gray";
+
+      compoundRanges.push({
+        start: compoundMatch.index,
+        end: compoundMatch.index + word.length
+      });
+
+      if (currentVariant !== preferredVariant || separator !== "-") {
+        results.push({
+          word,
+          start: compoundMatch.index,
+          end: compoundMatch.index + word.length,
+          suggestions: [`non-${preferredVariant}`],
+          type: "spelling"
+        });
+      }
+    }
+
+    /*
+     * Check individual words, excluding words already covered by a
+     * complete compound expression.
+     */
     const regex =
       /[\p{L}\p{M}]+(?:['’][\p{L}\p{M}]+)*/gu;
 
@@ -632,22 +666,28 @@
 
     while ((match = regex.exec(text)) !== null) {
       const word = match[0];
+      const start = match.index;
+      const end = start + word.length;
+
+      if (compoundRanges.some(range => start >= range.start && end <= range.end)) {
+        continue;
+      }
+
       const suggestions = getSuggestions(word);
 
       if (suggestions.length) {
         results.push({
           word,
-          start: match.index,
-          end: match.index + word.length,
+          start,
+          end,
           suggestions,
           type: "spelling"
         });
       }
     }
 
-    return results;
+    return results.sort((a, b) => a.start - b.start);
   }
-
   /*
    * Read caret position before re-rendering.
    */
