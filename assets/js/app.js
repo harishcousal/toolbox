@@ -430,16 +430,19 @@
       const uk = pair[0].toLowerCase();
       const us = pair[1].toLowerCase();
 
+      if (lower !== uk && lower !== us) continue;
+
+      // Return [] for the selected regional spelling so the base
+      // dictionary cannot incorrectly flag an accepted UK/US variant.
       if (getLanguage() === "en_GB") {
-        if (lower === uk) return [];
-        if (lower === us) return [pair[0]];
-      } else {
-        if (lower === us) return [];
-        if (lower === uk) return [pair[1]];
+        return lower === uk ? [] : [pair[0]];
       }
+
+      return lower === us ? [] : [pair[1]];
     }
 
-    return [];
+    // null means this is not a regional spelling pair.
+    return null;
   }
 
   /*
@@ -543,7 +546,7 @@
     // Apply selected US/UK spelling.
     const variantSuggestions = getVariantSuggestions(word);
 
-    if (variantSuggestions.length) {
+    if (variantSuggestions !== null) {
       return variantSuggestions;
     }
 
@@ -569,7 +572,23 @@
   function findPhraseAlternatives(text) {
     const results = [];
 
-    phraseAlternatives.forEach(rule => {
+    // Regional compounds are checked for spelling first by findIssues().
+    // Once their spelling matches the selected dictionary, show them here
+    // as optional blue-dot phrase/format alternatives.
+    const regionalVariant = getLanguage() === "en_GB" ? "grey" : "gray";
+    const rules = [
+      ...phraseAlternatives,
+      {
+        variants: [
+          `non ${regionalVariant}`,
+          `non-${regionalVariant}`,
+          `non${regionalVariant}`
+        ],
+        preferred: `non-${regionalVariant}`
+      }
+    ];
+
+    rules.forEach(rule => {
       rule.variants.forEach(variant => {
         const escaped = variant.replace(
           /[.*+?^${}()|[\]\\]/g,
@@ -644,7 +663,7 @@
         end: compoundMatch.index + word.length
       });
 
-      if (currentVariant !== preferredVariant || separator !== "-") {
+      if (currentVariant !== preferredVariant) {
         results.push({
           word,
           start: compoundMatch.index,
