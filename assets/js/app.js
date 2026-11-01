@@ -960,8 +960,11 @@ function renderCorrectedPreviewMarkup(text) {
 function renderPreviews() {
   const text = getText();
 
-  if (!originalText) originalText = text;
-  if (!correctedText) correctedText = text;
+  // A completely empty editor must produce empty previews.
+  if (!text) {
+    originalText = "";
+    correctedText = "";
+  }
 
   if ($("originalPreview")) {
     $("originalPreview").innerHTML = originalText
@@ -1213,7 +1216,8 @@ function renderPreviews() {
    */
   editor.addEventListener("input", () => {
     appliedCorrections.length = 0;
-    correctedText = getText();
+    originalText = getText();
+    correctedText = originalText;
 
     if ($("autoCheck")?.checked) {
       runCheck();
@@ -1390,42 +1394,223 @@ function renderPreviews() {
   });
 
   /*
-   * Basic CSV upload handling.
+   * Excel / CSV workbook workflow using the SheetJS library.
    */
+  let uploadedWorkbook = null;
+  let uploadedSheetName = "";
+  let uploadedRows = [];
+  let selectedColumnIndex = -1;
+
+  function setExcelStatus(message) {
+    if ($("excelStatus")) $("excelStatus").textContent = message;
+  }
+
+  function resetExcelInterface(hidePanel = true) {
+    uploadedWorkbook = null;
+    uploadedSheetName = "";
+    uploadedRows = [];
+    selectedColumnIndex = -1;
+
+    if ($("excelFile")) $("excelFile").value = "";
+    if ($("sheetSelect")) $("sheetSelect").replaceChildren();
+    if ($("columnChoices")) $("columnChoices").replaceChildren();
+    if ($("excelPreview")) $("excelPreview").replaceChildren();
+    if ($("saveColumnBtn")) $("saveColumnBtn").hidden = true;
+    if ($("downloadExcelBtn")) $("downloadExcelBtn").disabled = true;
+    if ($("fileName")) $("fileName").textContent = "No file selected";
+    setExcelStatus("");
+
+    if ($("excelPanel") && hidePanel) $("excelPanel").hidden = true;
+  }
+
+  function getSheetRows(sheetName) {
+    const sheet = uploadedWorkbook?.Sheets?.[sheetName];
+    if (!sheet || !window.XLSX) return [];
+    return XLSX.utils.sheet_to_json(sheet, {
+      header: 1,
+      raw: false,
+      defval: ""
+    });
+  }
+
+  function renderExcelColumns() {
+    const container = $("columnChoices");
+    if (!container || !uploadedRows.length) return;
+
+    container.replaceChildren();
+    const headers = uploadedRows[0] || [];
+    const width = Math.max(headers.length, ...uploadedRows.map(row => row.length), 0);
+
+    for (let col = 0; col < width; col++) {
+      const label = document.createElement("label");
+      label.className = "excel-column-option";
+
+      const radio = document.createElement("input");
+      radio.type = "radio";
+      radio.name = "excelTextColumn";
+      radio.value = String(col);
+      radio.checked = col === 0;
+      radio.addEventListener("change", () => {
+        selectedColumnIndex = col;
+      });
+
+      const caption = document.createElement("span");
+      caption.textContent = String(headers[col] ?? "").trim() || `Column ${col + 1}`;
+      label.append(radio, caption);
+      container.append(label);
+    }
+
+    selectedColumnIndex = 0;
+  }
+
+  function renderExcelPreview() {
+    const target = $("excelPreview");
+    if (!target) return;
+
+    target.replaceChildren();
+    const table = document.createElement("table");
+    table.className = "excel-preview-table";
+    const body = document.createElement("tbody");
+
+    uploadedRows.slice(0, 6).forEach(row => {
+      const tr = document.createElement("tr");
+      row.slice(0, 8).forEach(value => {
+        const cell = document.createElement("td");
+        cell.textContent = String(value ?? "");
+        tr.append(cell);
+      });
+      body.append(tr);
+    });
+
+    table.append(body);
+    target.append(table);
+  }
+
   $("excelFile")?.addEventListener("change", async event => {
     const file = event.target.files?.[0];
-
     if (!file) return;
 
-    if (!/\.csv$/i.test(file.name)) {
-      if ($("excelStatus")) {
-        $("excelStatus").textContent =
-          "Please save the workbook as CSV, then upload the CSV file.";
+    try {
+      if (!window.XLSX) {
+        throw new Error("Excel library did not load. Check your internet connection and refresh the page.");
       }
 
-      if ($("excelPanel")) {
-        $("excelPanel").hidden = false;
+      const buffer = await file.arrayBuffer();
+      uploadedWorkbook = XLSX.read(buffer, { type: "array", cellDates: false });
+
+      if (!uploadedWorkbook.SheetNames.length) {
+        throw new Error("The uploaded file contains no worksheets.");
       }
 
+      if ($("fileName")) $("fileName").textContent = file.name;
+      if ($("excelPanel")) $("excelPanel").hidden = false;
+
+      const sheetSelect = $("sheetSelect");
+      sheetSelect.replaceChildren();
+
+      uploadedWorkbook.SheetNames.forEach(name => {
+        const option = document.createElement("option");
+        option.value = name;
+        option.textContent = name;
+        sheetSelect.append(option);
+      });
+
+      uploadedSheetName = uploadedWorkbook.SheetNames[0];
+      uploadedRows = getSheetRows(uploadedSheetName);
+      renderExcelColumns();
+      renderExcelPreview();
+
+      if ($("downloadExcelBtn")) $("downloadExcelBtn").disabled = false;
+      setExcelStatus(`${file.name} loaded successfully. ${uploadedWorkbook.SheetNames.length} worksheet(s) found. Select a text column.`);
+    } catch (error) {
+      resetExcelInterface(false);
+      if ($("excelPanel")) $("excelPanel").hidden = false;
+      setExcelStatus(`Upload failed: ${error.message || "Unable to read this file."}`);
+    }
+  });
+
+  $("sheetSelect")?.addEventListener("change", () => {
+    if (!uploadedWorkbook) return;
+    uploadedSheetName = $("sheetSelect").value;
+    uploadedRows = getSheetRows(uploadedSheetName);
+    renderExcelColumns();
+    renderExcelPreview();
+    setExcelStatus(`Worksheet "${uploadedSheetName}" selected. Choose a text column.`);
+  });
+
+  $("loadColumnBtn")?.addEventListener("click", () => {
+    if (!uploadedWorkbook || selectedColumnIndex < 0 || !uploadedRows.length) {
+      setExcelStatus("Upload a workbook and select a text column first.");
       return;
     }
 
-    const content = await file.text();
+    const values = uploadedRows.slice(1).map(row =>
+      String(row[selectedColumnIndex] ?? "")
+    );
+    const text = values.join("\n");
 
-    if ($("fileName")) {
-      $("fileName").textContent = file.name;
+    previousText = getText();
+    editor.innerText = text;
+    originalText = text;
+    correctedText = text;
+    appliedCorrections.length = 0;
+
+    if ($("saveColumnBtn")) $("saveColumnBtn").hidden = false;
+    runCheck();
+    setExcelStatus(`Loaded ${values.length} data row(s) from "${uploadedSheetName}". Correct the text, then save it back to the workbook.`);
+    editor.focus();
+  });
+
+  $("saveColumnBtn")?.addEventListener("click", () => {
+    if (!uploadedWorkbook || selectedColumnIndex < 0 || !uploadedRows.length) return;
+
+    const correctedValues = getText().split(/\r?\n/);
+    const headerRow = uploadedRows[0] || [];
+    const sourceHeader = String(headerRow[selectedColumnIndex] ?? `Column ${selectedColumnIndex + 1}`);
+    const correctedHeader = `${sourceHeader} (Corrected)`;
+
+    let outputColumn = headerRow.findIndex(value =>
+      String(value).trim().toLowerCase() === correctedHeader.toLowerCase()
+    );
+
+    if (outputColumn < 0) {
+      outputColumn = Math.max(headerRow.length, ...uploadedRows.map(row => row.length), 0);
+      headerRow[outputColumn] = correctedHeader;
+      uploadedRows[0] = headerRow;
     }
 
-    if ($("excelPanel")) {
-      $("excelPanel").hidden = false;
+    for (let rowIndex = 1; rowIndex < uploadedRows.length; rowIndex++) {
+      uploadedRows[rowIndex][outputColumn] = correctedValues[rowIndex - 1] ?? "";
     }
 
-    if ($("excelStatus")) {
-      $("excelStatus").textContent =
-        "CSV selected. Spreadsheet column editing is not included in this build.";
+    const worksheet = uploadedWorkbook.Sheets[uploadedSheetName];
+    const range = XLSX.utils.decode_range(worksheet["!ref"] || "A1:A1");
+    range.e.c = Math.max(range.e.c, outputColumn);
+    range.e.r = Math.max(range.e.r, uploadedRows.length - 1);
+
+    for (let rowIndex = 0; rowIndex < uploadedRows.length; rowIndex++) {
+      const value = uploadedRows[rowIndex][outputColumn] ?? "";
+      const address = XLSX.utils.encode_cell({ r: rowIndex, c: outputColumn });
+      worksheet[address] = { t: "s", v: String(value) };
     }
 
-    window.toolboxUploadedCsv = content;
+    worksheet["!ref"] = XLSX.utils.encode_range(range);
+    renderExcelPreview();
+    setExcelStatus(`Corrected values saved to the new "${correctedHeader}" column. Download the workbook to keep the changes.`);
+  });
+
+  $("downloadExcelBtn")?.addEventListener("click", () => {
+    if (!uploadedWorkbook) return;
+    try {
+      XLSX.writeFile(uploadedWorkbook, "spell-check-corrected-workbook.xlsx");
+      setExcelStatus("Corrected workbook downloaded.");
+    } catch (error) {
+      setExcelStatus(`Download failed: ${error.message || "Unable to create workbook."}`);
+    }
+  });
+
+  $("clearExcelBtn")?.addEventListener("click", () => {
+    resetExcelInterface(true);
   });
 
   /*
