@@ -889,7 +889,7 @@ button:disabled {
   color: #d92d3a !important;
   background: rgba(217, 45, 58, 0.07);
   text-decoration-line: underline;
-  text-decoration-style: wavy;
+  text-decoration-style: solid;
   text-decoration-color: #d92d3a;
   text-decoration-thickness: 1.5px;
   text-underline-offset: 3px;
@@ -911,7 +911,7 @@ button:disabled {
 /* Spelling errors in Original and Corrected previews */
 .compare-text .preview-misspelled {
   color: #d92d3a;
-  text-decoration: underline wavy #d92d3a;
+  text-decoration: underline solid #d92d3a;
   text-decoration-thickness: 1.5px;
   text-underline-offset: 3px;
   background: rgba(217, 45, 58, 0.07);
@@ -921,5 +921,35 @@ button:disabled {
 .compare-text .preview-alternative {
   color: #087eaa;
   text-decoration: underline dotted #087eaa;
+  text-underline-offset: 3px;
+}
+
+
+/* Preview spelling errors: straight red underline and light-red highlight */
+.compare-text .preview-misspelled {
+  color: #c62828 !important;
+  text-decoration: underline solid #c62828;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+  background: rgba(220, 53, 69, 0.13);
+  border-radius: 2px;
+}
+
+/* Accepted corrections: straight green underline and light-green highlight */
+.compare-text .preview-corrected {
+  color: #16803c !important;
+  text-decoration: underline solid #16803c;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+  background: rgba(34, 160, 84, 0.14);
+  border-radius: 2px;
+}
+
+/* Match red treatment in the live editor */
+.rich-editor .misspelled {
+  color: #c62828 !important;
+  background: rgba(220, 53, 69, 0.13);
+  text-decoration: underline solid #c62828;
+  text-decoration-thickness: 1.5px;
   text-underline-offset: 3px;
 }
