@@ -203,7 +203,7 @@
     whereever: ["wherever"],
     wheather: ["whether", "weather"],
     thier: ["their"],
-    thier's: ["theirs"],
+    "thier's": ["theirs"],
     alot: ["a lot"],
     infront: ["in front"],
     aswell: ["as well"]
