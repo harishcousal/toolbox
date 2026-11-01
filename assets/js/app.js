@@ -1401,9 +1401,59 @@ function renderPreviews() {
   });
 
   /*
-   * Editor input.
+   * Fast reset for full-document deletion.
+   * The editor may contain hundreds of marker spans. Letting the browser
+   * delete a large selected rich-text DOM tree node-by-node can freeze the
+   * main thread. Intercept a full-content deletion and clear the editor in
+   * one operation instead.
    */
   let inputCheckTimer = null;
+
+  function resetEmptyEditor() {
+    if (inputCheckTimer) {
+      clearTimeout(inputCheckTimer);
+      inputCheckTimer = null;
+    }
+
+    issues = [];
+    issueResultCache.clear();
+    phraseResultCache.clear();
+    suggestionCache.clear();
+    originalText = "";
+    correctedText = "";
+    appliedCorrections.length = 0;
+    editor.replaceChildren();
+    closePopup();
+
+    if ($("originalPreview")) {
+      $("originalPreview").textContent = "Your original text will appear here.";
+    }
+    if ($("correctedPreview")) {
+      $("correctedPreview").textContent = "Accepted corrections will appear here.";
+    }
+    if ($("changeSummary")) {
+      $("changeSummary").textContent = "No corrections applied";
+    }
+
+    updateCounts();
+  }
+
+  editor.addEventListener("beforeinput", event => {
+    if (!/^delete/.test(event.inputType || "")) return;
+
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed || !selection.rangeCount) return;
+
+    // textContent is substantially cheaper than innerText for this check.
+    // Selection text includes line breaks, so >= also covers rendered <br>s.
+    const selectedLength = selection.toString().length;
+    const documentLength = editor.textContent.length;
+
+    if (documentLength > 0 && selectedLength >= documentLength) {
+      event.preventDefault();
+      resetEmptyEditor();
+    }
+  });
 
   editor.addEventListener("input", () => {
     appliedCorrections.length = 0;
@@ -1412,20 +1462,7 @@ function renderPreviews() {
 
     // Fast path for deleting all content, including large pasted documents.
     if (!originalText.trim()) {
-      if (inputCheckTimer) {
-        clearTimeout(inputCheckTimer);
-        inputCheckTimer = null;
-      }
-
-      issues = [];
-      issueResultCache.clear();
-      phraseResultCache.clear();
-      suggestionCache.clear();
-      originalText = "";
-      correctedText = "";
-      closePopup();
-      renderPreviews();
-      updateCounts();
+      resetEmptyEditor();
       return;
     }
 
