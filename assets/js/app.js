@@ -289,6 +289,7 @@
     ["counsellor", "counselor"],
     ["jewellery", "jewelry"],
     ["grey", "gray"],
+    ["galvanised", "galvanized"],
     ["aluminium", "aluminum"],
     ["mould", "mold"],
     ["moulds", "molds"],
@@ -890,50 +891,122 @@
       return null;
     }
 
-    const range = selection.getRangeAt(0).cloneRange();
+    const targetNode = selection.anchorNode;
+    const targetOffset = selection.anchorOffset;
+    let position = 0;
+    let found = false;
 
-    range.selectNodeContents(editor);
-    range.setEnd(selection.anchorNode, selection.anchorOffset);
+    function visit(node) {
+      if (found) return;
 
-    return range.toString().length;
+      if (node === targetNode) {
+        if (node.nodeType === Node.TEXT_NODE) {
+          position += Math.min(targetOffset, node.textContent.length);
+        } else {
+          const children = node.childNodes;
+          for (let i = 0; i < Math.min(targetOffset, children.length); i++) {
+            measure(children[i]);
+          }
+        }
+        found = true;
+        return;
+      }
+
+      measure(node);
+    }
+
+    function measure(node) {
+      if (found) return;
+
+      if (node.nodeType === Node.TEXT_NODE) {
+        position += node.textContent.length;
+        return;
+      }
+
+      if (node.nodeType !== Node.ELEMENT_NODE) return;
+
+      if (node.tagName === "BR") {
+        position += 1;
+        return;
+      }
+
+      for (const child of node.childNodes) {
+        visit(child);
+        if (found) return;
+      }
+    }
+
+    visit(editor);
+    return found ? position : null;
   }
 
   /*
-   * Restore caret after rendering.
+   * Restore caret after rendering, counting BR elements as newline
+   * characters. Range.toString() and text-only TreeWalkers omit BRs,
+   * which previously moved the caret backwards after pressing Enter.
    */
   function restoreCaret(position) {
     if (position === null) return;
 
     const selection = window.getSelection();
-
     if (!selection) return;
 
-    const walker = document.createTreeWalker(
-      editor,
-      NodeFilter.SHOW_TEXT
-    );
-
-    let node;
-    let remaining = position;
+    let consumed = 0;
+    let restored = false;
     const range = document.createRange();
 
-    while ((node = walker.nextNode())) {
-      if (remaining <= node.length) {
-        range.setStart(node, remaining);
-        range.collapse(true);
+    function place(node, offset) {
+      range.setStart(node, offset);
+      range.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      restored = true;
+    }
 
-        selection.removeAllRanges();
-        selection.addRange(range);
+    function walk(node) {
+      if (restored) return;
 
+      if (node.nodeType === Node.TEXT_NODE) {
+        const length = node.textContent.length;
+
+        if (position <= consumed + length) {
+          place(node, Math.max(0, position - consumed));
+          return;
+        }
+
+        consumed += length;
         return;
       }
 
-      remaining -= node.length;
+      if (node.nodeType !== Node.ELEMENT_NODE) return;
+
+      if (node.tagName === "BR") {
+        if (position <= consumed + 1) {
+          range.setStartAfter(node);
+          range.collapse(true);
+          selection.removeAllRanges();
+          selection.addRange(range);
+          restored = true;
+          return;
+        }
+
+        consumed += 1;
+        return;
+      }
+
+      for (const child of node.childNodes) {
+        walk(child);
+        if (restored) return;
+      }
+    }
+
+    for (const child of editor.childNodes) {
+      walk(child);
+      if (restored) return;
     }
 
     range.selectNodeContents(editor);
     range.collapse(false);
-
     selection.removeAllRanges();
     selection.addRange(range);
   }
