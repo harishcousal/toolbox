@@ -1292,7 +1292,14 @@ function renderPreviews() {
 
     issues = findIssues(text);
 
-    renderEditor();
+    // Preserve the browser-created paragraph for the first check after Enter.
+    // The next ordinary edit can safely rebuild highlights using caret offsets.
+    if (preserveNativeEnterDOM) {
+      preserveNativeEnterDOM = false;
+    } else {
+      renderEditor();
+    }
+
     renderPreviews();
     updateCounts();
     closePopup();
@@ -1564,39 +1571,31 @@ function renderPreviews() {
   // Native Enter may create DIV/P blocks; the highlighter later rebuilds the
   // editor using BR elements, which can make the saved caret offset point to
   // the previous line. Insert a BR ourselves so the DOM shape is consistent.
+  // Let the browser create native contenteditable paragraphs for Enter.
+  // Rebuilding the editor immediately after Enter can collapse the new empty
+  // paragraph and move the caret back to the previous line.
+  let pendingNativeEnter = false;
+  let preserveNativeEnterDOM = false;
+
   editor.addEventListener("keydown", event => {
-    if (event.key !== "Enter" || event.isComposing) return;
-
-    event.preventDefault();
-
-    const selection = window.getSelection();
-    if (!selection || !selection.rangeCount) return;
-
-    const range = selection.getRangeAt(0);
-    if (!editor.contains(range.commonAncestorContainer)) return;
-
-    range.deleteContents();
-
-    const lineBreak = document.createElement("br");
-    const caretNode = document.createTextNode("");
-    range.insertNode(lineBreak);
-    lineBreak.parentNode.insertBefore(caretNode, lineBreak.nextSibling);
-
-    const caretRange = document.createRange();
-    caretRange.setStart(caretNode, 0);
-    caretRange.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(caretRange);
-
-    // Trigger the same debounced checking path as ordinary typing.
-    editor.dispatchEvent(new InputEvent("input", {
-      bubbles: true,
-      inputType: "insertLineBreak",
-      data: null
-    }));
+    if (event.key === "Enter" && !event.isComposing) {
+      pendingNativeEnter = true;
+      // Do not preventDefault: Chrome must create the native paragraph/line break.
+    }
   });
 
-  editor.addEventListener("input", () => {
+  editor.addEventListener("input", event => {
+    if (
+      pendingNativeEnter ||
+      event.inputType === "insertParagraph" ||
+      event.inputType === "insertLineBreak"
+    ) {
+      if ($("autoCheck")?.checked) {
+        preserveNativeEnterDOM = true;
+      }
+    }
+    pendingNativeEnter = false;
+
     appliedCorrections.length = 0;
     originalText = getText();
     correctedText = originalText;
