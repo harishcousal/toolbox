@@ -2339,6 +2339,7 @@
 
     if (
       personalDictionary.has(lower) ||
+      (window.ToolboxCloudDictionary && window.ToolboxCloudDictionary.words.has(lower)) ||
       ignoredWords.has(lower) ||
       technicalWords.has(lower) ||
       acceptedWords.has(lower)
@@ -3047,7 +3048,8 @@ function renderPreviews() {
       add.textContent = "Add to dictionary";
       add.addEventListener("click", event => {
         event.stopPropagation();
-        personalDictionary.add(issue.word.toLowerCase());
+        const word = issue.word.toLowerCase();
+        personalDictionary.add(word);
 
         try {
           localStorage.setItem(
@@ -3056,6 +3058,11 @@ function renderPreviews() {
           );
         } catch (error) {
           // Keep the word in the current session.
+        }
+
+        // Local save is immediate; shared save requires submitting the GitHub issue.
+        if (window.ToolboxCloudDictionary) {
+          window.ToolboxCloudDictionary.requestChange("add", word);
         }
 
         runCheck();
@@ -3677,6 +3684,8 @@ function renderPreviews() {
    */
   originalText = getText();
   correctedText = originalText;
+
+  document.addEventListener("toolbox-cloud-dictionary-loaded", () => runCheck());
 
   runCheck();
 })();
