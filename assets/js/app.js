@@ -1575,15 +1575,15 @@ function renderPreviews() {
       return;
     }
 
-    // Avoid running the full spell-check pipeline for every keystroke.
-    // A short debounce lets paste and fast typing settle before checking.
+    // Keep live checking responsive while still grouping rapid keystrokes.
+    // The shorter debounce also reduces the pause after inserting a line break.
     if (inputCheckTimer) clearTimeout(inputCheckTimer);
 
     if ($("autoCheck")?.checked) {
       inputCheckTimer = setTimeout(() => {
         inputCheckTimer = null;
         runCheck();
-      }, 220);
+      }, 90);
     } else {
       updateCounts();
     }
