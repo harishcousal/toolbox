@@ -1,0 +1,107 @@
+name: Update shared spell-check dictionary
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: toolbox-shared-dictionary
+  cancel-in-progress: false
+
+jobs:
+  update-dictionary:
+    if: github.event.issue.user.login == 'harishcousal'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Validate request and update dictionary
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("fs");
+            const path = "assets/data/custom-dictionary.json";
+            const issue = context.payload.issue;
+            const body = issue.body || "";
+            const lines = Object.fromEntries(
+              body.split(/\r?\n/).map(line => {
+                const match = line.match(/^([A-Z_]+):\s*(.*)$/);
+                return match ? [match[1], match[2].trim()] : [];
+              }).filter(Boolean)
+            );
+            const fail = async message => {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: issue.number, body: `Dictionary request rejected: ${message}`
+              });
+              core.setFailed(message);
+            };
+            if (!body.includes("TOOLBOX_DICTIONARY_REQUEST")) {
+              await fail("The request marker is missing.");
+              return;
+            }
+            const action = lines.ACTION;
+            const word = (lines.WORD || "").trim();
+            const replacement = (lines.REPLACEMENT || "").trim();
+            const validWord = value => value.length > 0 && value.length <= 100 &&
+              /^[\p{L}\p{M}][\p{L}\p{M}'’ -]*$/u.test(value);
+            if (!["add", "remove", "replace"].includes(action) || !validWord(word)) {
+              await fail("Action or word format is invalid.");
+              return;
+            }
+            if (action === "replace" && !validWord(replacement)) {
+              await fail("Replacement word format is invalid.");
+              return;
+            }
+            let data = { version: 1, updatedAt: null, words: [] };
+            if (fs.existsSync(path)) data = JSON.parse(fs.readFileSync(path, "utf8"));
+            if (!Array.isArray(data.words)) data.words = [];
+            const normal = value => value.trim().toLocaleLowerCase();
+            const target = normal(word);
+            const existing = new Set(data.words.map(normal));
+            if (action === "add") {
+              if (!existing.has(target)) data.words.push(word);
+            } else if (action === "remove") {
+              data.words = data.words.filter(value => normal(value) !== target);
+            } else {
+              if (!existing.has(target)) {
+                await fail("The word to replace was not found.");
+                return;
+              }
+              data.words = data.words.filter(value => normal(value) !== target);
+              if (!data.words.some(value => normal(value) === normal(replacement))) data.words.push(replacement);
+            }
+            data.words.sort((a, b) => a.localeCompare(b));
+            data.version = 1;
+            data.updatedAt = new Date().toISOString();
+            fs.writeFileSync(path, JSON.stringify(data, null, 2) + "\n");
+            const { execFileSync } = require("child_process");
+            execFileSync("git", ["config", "user.name", "github-actions[bot]"]);
+            execFileSync("git", ["config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com"]);
+            execFileSync("git", ["add", path]);
+            try {
+              execFileSync("git", ["commit", "-m", `Update shared dictionary: ${action} ${word}`]);
+            } catch (error) {
+              if (!String(error).includes("nothing to commit")) throw error;
+            }
+            execFileSync("git", ["push"]);
+            await github.rest.issues.createComment({
+              owner: context.repo.owner, repo: context.repo.repo,
+              issue_number: issue.number,
+              body: `Shared dictionary request processed successfully. Action: **${action}**. Word: **${word}**.`
+            });
+            await github.rest.issues.update({
+              owner: context.repo.owner, repo: context.repo.repo,
+              issue_number: issue.number, state: "closed"
+            });
+
+      - name: Ignore requests from other GitHub accounts
+        if: github.event.issue.user.login != 'harishcousal'
+        run: echo "Request ignored because the issue author is not on the allowlist."
