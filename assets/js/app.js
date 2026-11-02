@@ -33,7 +33,9 @@
    * Common spelling errors.
    */
   const spellingMap = {
+    // Common incorrect forms of "rotating".
     rotateing: ["rotating"],
+    rotaeing: ["rotating"],
     recieve: ["receive"],
     receieve: ["receive"],
     recieved: ["received"],
