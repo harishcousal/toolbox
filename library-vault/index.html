@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Toolbox | Shared Dictionary</title>
+  <link rel="stylesheet" href="../assets/css/styles.css">
+  <style>
+    .vault-wrap{max-width:980px;margin:0 auto;padding:36px 24px}
+    .vault-panel{background:var(--panel,#fff);border:1px solid var(--border,#ddd);border-radius:16px;padding:24px;margin:20px 0}
+    .vault-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+    .vault-input{flex:1;min-width:220px;padding:12px 14px;border:1px solid var(--border,#ccc);border-radius:9px;background:transparent;color:inherit}
+    .vault-button{padding:11px 16px;border:0;border-radius:9px;cursor:pointer;background:#00d4ff;color:#07131a;font-weight:650}
+    .vault-list{display:grid;gap:8px;margin-top:18px}
+    .vault-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid var(--border,#ddd);border-radius:9px}
+    .vault-muted{opacity:.72;font-size:.92rem}
+    .vault-item button{border:1px solid var(--border,#ccc);background:transparent;color:inherit;border-radius:7px;padding:7px 10px;cursor:pointer}
+    @media(max-width:600px){.vault-wrap{padding:22px 14px}.vault-panel{padding:17px}}
+  </style>
+</head>
+<body>
+  <main class="vault-wrap">
+    <p class="vault-muted">TOOLBOX / DICTIONARY</p>
+    <h1>Shared Dictionary</h1>
+    <p class="vault-muted">View the words shared by Toolbox Spell Checker. Changes are submitted through GitHub and processed by a protected workflow.</p>
+    <section class="vault-panel">
+      <h2>Add a word</h2>
+      <div class="vault-row">
+        <input id="newWord" class="vault-input" maxlength="100" placeholder="Enter a word or technical term">
+        <button id="addWord" class="vault-button">Submit addition</button>
+      </div>
+      <p class="vault-muted">Submitting opens a prefilled GitHub issue. Sign in as the repository owner and submit it to approve the change.</p>
+    </section>
+    <section class="vault-panel">
+      <div class="vault-row">
+        <div><h2 style="margin:0">Dictionary entries</h2><p id="status" class="vault-muted">Loading shared dictionary…</p></div>
+        <div style="flex:1"></div>
+        <input id="search" class="vault-input" style="max-width:280px" placeholder="Search words">
+      </div>
+      <div id="wordList" class="vault-list"></div>
+    </section>
+    <p class="vault-muted">Anyone with this page link can view the dictionary. Only the GitHub account <strong>harishcousal</strong> is authorised by the workflow to change the published file. No GitHub token is stored in this page.</p>
+    <p><a href="../">Back to Spell Checker</a></p>
+  </main>
+  <script src="../assets/js/cloud-dictionary.js"></script>
+  <script>
+    (() => {
+      const status = document.getElementById("status");
+      const list = document.getElementById("wordList");
+      const search = document.getElementById("search");
+      let entries = [];
+      function request(action, word, replacement = "") {
+        const body = ["TOOLBOX_DICTIONARY_REQUEST", `ACTION: ${action}`, `WORD: ${word}`, `REPLACEMENT: ${replacement}`].join("\n");
+        const url = new URL("https://github.com/harishcousal/toolbox/issues/new");
+        url.searchParams.set("title", `Dictionary ${action}: ${word}`);
+        url.searchParams.set("body", body);
+        window.open(url.toString(), "_blank", "noopener,noreferrer");
+      }
+      function render() {
+        const query = search.value.trim().toLocaleLowerCase();
+        const filtered = entries.filter(word => word.toLocaleLowerCase().includes(query));
+        list.replaceChildren();
+        if (!filtered.length) {
+          const empty = document.createElement("p");
+          empty.className = "vault-muted";
+          empty.textContent = entries.length ? "No matching words." : "The shared dictionary is empty.";
+          list.append(empty); return;
+        }
+        filtered.forEach(word => {
+          const row = document.createElement("div"); row.className = "vault-item";
+          const label = document.createElement("span"); label.textContent = word;
+          const actions = document.createElement("div"); actions.className = "vault-row";
+          const edit = document.createElement("button"); edit.textContent = "Replace";
+          edit.addEventListener("click", () => {
+            const replacement = prompt(`Replace "${word}" with:`);
+            if (replacement && replacement.trim()) request("replace", word, replacement.trim());
+          });
+          const remove = document.createElement("button"); remove.textContent = "Remove";
+          remove.addEventListener("click", () => request("remove", word));
+          actions.append(edit, remove); row.append(label, actions); list.append(row);
+        });
+      }
+      window.ToolboxCloudDictionary.load().then(async result => {
+        try {
+          const response = await fetch("../assets/data/custom-dictionary.json?v=" + Date.now(), {cache:"no-store"});
+          const data = await response.json();
+          entries = Array.isArray(data.words) ? data.words : [];
+          status.textContent = `${entries.length} words · ${result.ok ? "Shared dictionary loaded" : "Loaded with a warning"}`;
+          render();
+        } catch (error) { status.textContent = "Could not load the shared dictionary. Check the published GitHub Pages deployment."; }
+      });
+      search.addEventListener("input", render);
+      document.getElementById("addWord").addEventListener("click", () => {
+        const input = document.getElementById("newWord"); const word = input.value.trim();
+        if (!word) { input.focus(); return; } request("add", word);
+      });
+    })();
+  </script>
+</body>
+</html>
