@@ -1528,6 +1528,42 @@ function renderPreviews() {
     }
   });
 
+  // Keep Enter behaviour predictable in the contenteditable editor.
+  // Native Enter may create DIV/P blocks; the highlighter later rebuilds the
+  // editor using BR elements, which can make the saved caret offset point to
+  // the previous line. Insert a BR ourselves so the DOM shape is consistent.
+  editor.addEventListener("keydown", event => {
+    if (event.key !== "Enter" || event.isComposing) return;
+
+    event.preventDefault();
+
+    const selection = window.getSelection();
+    if (!selection || !selection.rangeCount) return;
+
+    const range = selection.getRangeAt(0);
+    if (!editor.contains(range.commonAncestorContainer)) return;
+
+    range.deleteContents();
+
+    const lineBreak = document.createElement("br");
+    const caretNode = document.createTextNode("");
+    range.insertNode(lineBreak);
+    lineBreak.parentNode.insertBefore(caretNode, lineBreak.nextSibling);
+
+    const caretRange = document.createRange();
+    caretRange.setStart(caretNode, 0);
+    caretRange.collapse(true);
+    selection.removeAllRanges();
+    selection.addRange(caretRange);
+
+    // Trigger the same debounced checking path as ordinary typing.
+    editor.dispatchEvent(new InputEvent("input", {
+      bubbles: true,
+      inputType: "insertLineBreak",
+      data: null
+    }));
+  });
+
   editor.addEventListener("input", () => {
     appliedCorrections.length = 0;
     originalText = getText();
