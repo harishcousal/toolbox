@@ -438,7 +438,38 @@
     // Continue without saved personal words.
   }
 
-  const getText = () => editor.innerText.replace(/\r/g, "");
+  // Read editor text while preserving a final BR. Chromium's innerText
+  // can omit a trailing line break in contenteditable when the caret is
+  // sitting in the empty text node after that BR. If live checking then
+  // rebuilds the editor, the final newline disappears and Enter appears
+  // to require a second press.
+  const getText = () => {
+    const text = editor.innerText.replace(/\\r/g, "");
+
+    function endsWithBreak(node) {
+      for (let i = node.childNodes.length - 1; i >= 0; i--) {
+        const child = node.childNodes[i];
+
+        if (child.nodeType === Node.TEXT_NODE) {
+          if (child.textContent.length) return false;
+          continue;
+        }
+
+        if (child.nodeType !== Node.ELEMENT_NODE) continue;
+
+        if (child.tagName === "BR") return true;
+
+        const nested = endsWithBreak(child);
+        if (nested !== null) return nested;
+      }
+
+      return null;
+    }
+
+    return endsWithBreak(editor) === true && !text.endsWith("\\n")
+      ? text + "\\n"
+      : text;
+  };
 
   function preserveCase(source, replacement) {
     if (source === source.toUpperCase()) {
