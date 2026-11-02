@@ -444,7 +444,8 @@
   // rebuilds the editor, the final newline disappears and Enter appears
   // to require a second press.
   const getText = () => {
-    const text = editor.innerText.replace(/\\r/g, "");
+    // Use real newline characters, never the two-character sequence \ and n.
+    const text = editor.innerText.replace(/\r/g, "");
 
     function endsWithBreak(node) {
       for (let i = node.childNodes.length - 1; i >= 0; i--) {
@@ -466,8 +467,8 @@
       return null;
     }
 
-    return endsWithBreak(editor) === true && !text.endsWith("\\n")
-      ? text + "\\n"
+    return endsWithBreak(editor) === true && !text.endsWith("\n")
+      ? text + "\n"
       : text;
   };
 
