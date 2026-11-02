@@ -33,6 +33,7 @@
    * Common spelling errors.
    */
   const spellingMap = {
+    rotateing: ["rotating"],
     recieve: ["receive"],
     receieve: ["receive"],
     recieved: ["received"],
@@ -2300,6 +2301,10 @@
    * for these correctly spelled words.
    */
   const acceptedWords = new Set([
+    "rotate",
+    "rotates",
+    "rotated",
+    "rotating",
     "after",
     "acceptable",
     "immediately",
